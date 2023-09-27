@@ -521,7 +521,8 @@ void ShowArgOptions()
 		{ "-o", "Object file to scribe." },
 		{ "-d", "Output directory, if not set it uses object folder." },
 		{ "-n", "Object internal name (optional)." },
-		{ "-t", "Texture name for model." }
+		{ "-t", "Texture name for model." },
+		{ "-ignoreuv", "Ignores uvmapping check." }
 	};
 
 	printf("Options:\n");
