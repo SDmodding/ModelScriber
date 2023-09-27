@@ -4,7 +4,7 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION "v1.0.3"
+#define PROJECT_VERSION "v1.0.2"
 
 // SDK Stuff
 #define UFG_PAD_INSERT(x, y) x ## y
