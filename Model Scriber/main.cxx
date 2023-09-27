@@ -4,7 +4,7 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION "v1.0.1"
+#define PROJECT_VERSION "v1.0.3"
 
 // SDK Stuff
 #define UFG_PAD_INSERT(x, y) x ## y
@@ -153,7 +153,7 @@ namespace Illusion
 			0x00, 0x00, 0x00, 0x00, 0x1B, 0xD3, 0xE8, 0x63, 0x53, 0x74, 0x37, 0xC8,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD9, 0x08, 0x83, 0x1D,
 			0x00, 0x00, 0x00, 0x00, 0xBF, 0xFA, 0x43, 0x8B, 0x00, 0x00, 0x00, 0x00,
 			0xE6, 0x65, 0xC2, 0xC0, 0xE6, 0x65, 0xC2, 0xC0, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -162,11 +162,18 @@ namespace Illusion
 			0xE0, 0x15, 0xC7, 0x3B, 0x00, 0x00, 0x00, 0x00
 		};
 
+		uint16_t m_VisibilityFlags = 0x1F;
+		uint16_t mShadowFlags = 0x0;
+		uint8_t m_MaterialPadding[12] = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		};
+
 		Material_t()
 		{
 			// ResourceData
 			m_TypeUID	= 0xF5F8516F;
 			m_ChunkUID	= 0xB4C26312;
+			SetEntrySize(sizeof(Material_t));
 		}
 
 		void SetTextureNameUID(uint32_t p_NameUID)
@@ -343,7 +350,8 @@ public:
 
 	bool IsUVMappingValid()
 	{
-		if (m_Mesh->texcoords)
+		return true;
+		if (m_Mesh->texcoord_count > 1)
 		{
 			for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
 			{
@@ -457,6 +465,7 @@ public:
 					m_ModelData.CheckVertice(&m_VertexBufferData[i * 3]);
 			}
 
+			m_ModelData.Mesh.m_MaterialHandle.m_NameUID			= m_Material.m_NameUID;
 			m_ModelData.Mesh.m_IndexBufferHandle.m_NameUID		= m_IndexBuffer.m_NameUID;
 			m_ModelData.Mesh.m_VertexBufferHandles[0].m_NameUID = m_VertexBuffer.m_NameUID;
 			m_ModelData.Mesh.m_VertexBufferHandles[1].m_NameUID = m_UVBuffer.m_NameUID;
@@ -512,6 +521,10 @@ void ShowArgOptions()
 
 int main(int p_Argc, char** p_Argv)
 {
+#ifdef _DEBUG
+	int m_DebugKey = getchar();
+#endif
+
 	SetConsoleTitleA(("Model Scribe " PROJECT_VERSION));
 	InitArgParam(p_Argc, p_Argv);
 
@@ -559,7 +572,7 @@ int main(int p_Argc, char** p_Argv)
 	printf("Texture Name: %s (0x%X)\n", &m_TextureName[0], m_TextureHash);
 
 	CModel m_Model;
-	m_Model.LoadMesh(&m_ObjectFile[0]);// R"(D:\Sources\SDmodding\Model Scriber\main\Model.obj)");
+	m_Model.LoadMesh(&m_ObjectFile[0]);
 
 	if (!m_Model.m_Mesh)
 	{
