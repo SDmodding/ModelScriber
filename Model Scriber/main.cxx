@@ -350,7 +350,6 @@ public:
 
 	bool IsUVMappingValid()
 	{
-		return true;
 		if (m_Mesh->texcoord_count > 1)
 		{
 			for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
@@ -504,6 +503,17 @@ std::string GetArgParam(const char* p_Arg)
 	return "";
 }
 
+bool HasArgSet(const char* p_Arg)
+{
+	for (int i = 0; g_Argc > i; ++i)
+	{
+		if (_stricmp(p_Arg, g_Argv[i]) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 void ShowArgOptions()
 {
 	std::pair<const char*, const char*> m_Args[] =
@@ -582,8 +592,13 @@ int main(int p_Argc, char** p_Argv)
 
 	if (!m_Model.IsUVMappingValid())
 	{
-		printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
-		return 1;
+		if (HasArgSet("-ignoreuv"))
+			printf("Object file contains invalid uv mapping, but '-ignoreuv' was specified!\n");
+		else
+		{
+			printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
+			return 1;
+		}
 	}
 
 	m_Model.CreateBuffers();
