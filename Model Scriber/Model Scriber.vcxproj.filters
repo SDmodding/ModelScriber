@@ -10,7 +10,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Model Scriber.cpp">
+    <ClCompile Include="main.cxx">
       <Filter>Project Files</Filter>
     </ClCompile>
     <ClCompile Include="3rdParty\fast_obj.c">

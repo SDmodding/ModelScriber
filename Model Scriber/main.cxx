@@ -4,15 +4,13 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION "v1.0.0"
+#define PROJECT_VERSION "v1.0.1"
 
 // SDK Stuff
 #define UFG_PAD_INSERT(x, y) x ## y
 #define UFG_PAD_DEFINE(x, y) UFG_PAD_INSERT(x, y)
 #define UFG_PAD(size) char UFG_PAD_DEFINE(padding_, __LINE__)[size] = { 0x0 }
 #include <SDK/Optional/StringHash.hpp>
-
-#define DEBUG_OUTPUT_PATH R"(D:\Sources\SDmodding\Model Scriber\main\)"
 
 namespace UFG
 {
@@ -222,7 +220,7 @@ namespace Illusion
 		void SetNumPrims(uint32_t p_NumPrims)
 		{
 			m_NumPrims			= p_NumPrims;
-			Mesh.m_NumPrims	= p_NumPrims;
+			Mesh.m_NumPrims		= p_NumPrims;
 		}
 
 		void CheckVertice(float* p_Vertice)
@@ -358,7 +356,7 @@ public:
 		return true;
 	}
 
-	void CreateBuffers()
+	void CreateBuffers()	
 	{
 		// IndexBuffer
 		{
@@ -502,6 +500,7 @@ void ShowArgOptions()
 	std::pair<const char*, const char*> m_Args[] =
 	{
 		{ "-o", "Object file to scribe." },
+		{ "-d", "Output directory, if not set it uses object folder." },
 		{ "-n", "Object internal name (optional)." },
 		{ "-t", "Texture name for model." }
 	};
@@ -516,9 +515,10 @@ int main(int p_Argc, char** p_Argv)
 	SetConsoleTitleA(("Model Scribe " PROJECT_VERSION));
 	InitArgParam(p_Argc, p_Argv);
 
-	std::string m_ObjectFile	= GetArgParam("-o");
-	std::string m_ObjectName	= GetArgParam("-n");
-	std::string m_TextureName	= GetArgParam("-t");
+	std::string m_ObjectFile		= GetArgParam("-o");
+	std::string m_OutputDirectory	= GetArgParam("-d");
+	std::string m_ObjectName		= GetArgParam("-n");
+	std::string m_TextureName		= GetArgParam("-t");
 
 	if (m_ObjectFile.empty())
 	{
@@ -554,6 +554,7 @@ int main(int p_Argc, char** p_Argv)
 		return 1;
 	}
 
+	std::transform(m_TextureName.begin(), m_TextureName.end(), m_TextureName.begin(), ::toupper);
 	uint32_t m_TextureHash = SDK::StringHash32(&m_TextureName[0]);
 	printf("Texture Name: %s (0x%X)\n", &m_TextureName[0], m_TextureHash);
 
@@ -584,7 +585,12 @@ int main(int p_Argc, char** p_Argv)
 
 	m_Model.m_Material.SetTextureNameUID(m_TextureHash);
 
-	std::string m_OutputFileNameGeneric = m_ObjectFile.substr(0, m_ObjectFile.find_last_of('.'));
+	std::string m_OutputFileNameGeneric;
+	if (m_OutputDirectory.empty())
+		m_OutputFileNameGeneric = m_ObjectFile.substr(0, m_ObjectFile.find_last_of('.'));
+	else
+		m_OutputFileNameGeneric = m_OutputDirectory + "\\" + m_ObjectName;
+
 	std::string m_PermBinFileName = m_OutputFileNameGeneric + ".perm.bin";
 	std::string m_TempBinFileName = m_OutputFileNameGeneric + ".temp.bin";
 	{
@@ -595,5 +601,5 @@ int main(int p_Argc, char** p_Argv)
 			fclose(m_TempFile);
 	}
 
-	printf("Output files:\n\t%s\n\t%s", &m_PermBinFileName[0], &m_TempBinFileName[0]);
+	printf("Output files:\n\t%s\n\t%s\n", &m_PermBinFileName[0], &m_TempBinFileName[0]);
 }

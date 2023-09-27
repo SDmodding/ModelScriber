@@ -144,7 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="3rdParty\fast_obj.c" />
-    <ClCompile Include="Model Scriber.cpp" />
+    <ClCompile Include="main.cxx" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdParty\fast_obj.h" />
