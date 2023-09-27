@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Project Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Project Files\3rdParty">
+      <UniqueIdentifier>{815818fc-edf1-4bf4-bee3-77581929fde2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Model Scriber.cpp">
+      <Filter>Project Files</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdParty\fast_obj.c">
+      <Filter>Project Files\3rdParty</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="3rdParty\fast_obj.h">
+      <Filter>Project Files\3rdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdParty\umHalf.h">
+      <Filter>Project Files\3rdParty</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
