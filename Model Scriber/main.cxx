@@ -4,7 +4,7 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION "v1.0.2"
+#define PROJECT_VERSION "v1.0.3"
 
 // SDK Stuff
 #define UFG_PAD_INSERT(x, y) x ## y
@@ -613,6 +613,15 @@ int main(int p_Argc, char** p_Argv)
 	m_Model.SetName(&m_ObjectName[0]);
 
 	m_Model.m_Material.SetTextureNameUID(m_TextureHash);
+
+	printf("Hashes:\n");
+	{
+		printf("\tMaterial:\t0x%X\n", m_Model.m_Material.m_NameUID);
+		printf("\tIndexBuffer:\t0x%X\n", m_Model.m_IndexBuffer.m_NameUID);
+		printf("\tVertexBuffer:\t0x%X\n", m_Model.m_VertexBuffer.m_NameUID);
+		printf("\tUVBuffer:\t0x%X\n", m_Model.m_UVBuffer.m_NameUID);
+		printf("\tModelData:\t0x%X\n", m_Model.m_ModelData.m_NameUID);
+	}
 
 	std::string m_OutputFileNameGeneric;
 	if (m_OutputDirectory.empty())
