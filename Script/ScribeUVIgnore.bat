@@ -49,7 +49,7 @@ goto G_END
 :G_BEGIN
 echo ^<MediaPack^>^<Resource^>%m_TexturePath%^</Resource^>^</MediaPack^> > %m_ConfigPath%
 TextureScriberPC64.exe PC64 "%m_ScribePath%\%1_TS001.perm.bin" "%m_ScribePath%\%1_TS001.temp.bin" "%m_ConfigPath%"
-ModelScriber.exe -o "%m_ModelPath%" -d "%m_ScribePath%" -n "%1" -t "%2"
+ModelScriber.exe -o "%m_ModelPath%" -d "%m_ScribePath%" -n "%1" -t "%2" -ignoreuv
 rmdir /S /Q %m_ScribePath%\TextureCache
 
 :G_END
