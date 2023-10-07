@@ -1,10 +1,25 @@
 #include <iostream>
 #include <Windows.h>
+#include <vector>
+#include <map>
 #include "3rdParty/fast_obj.h"
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION "v1.0.3"
+#define PROJECT_VERSION		"v1.1.0"
+#define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
+
+// Material Defines
+#define MATERIAL_ALPHASTATE			0x12C800F2
+#define MATERIAL_RASTERSTATE		0x3BC715E0
+#define MATERIAL_SHADER				0x8B5561A1
+#define MATERIAL_STATEBLOCK			0x4D04C7F2
+#define MATERIAL_TEXTURE			0x8B43FABF
+
+// Material Default Defines
+#define MATERIAL_DEFAULT_DepthBiasSortLayer			0xAF2B2668
+#define MATERIAL_DEFAULT_SpecularLook				0x7610933B
+#define MATERIAL_DEFAULT_TextureAnim				0xD0B4527C
 
 // SDK Stuff
 #define UFG_PAD_INSERT(x, y) x ## y
@@ -116,69 +131,62 @@ namespace Illusion
 		}
 	};
 
-	struct Material_t : UFG::ResourceData_t
+	struct MaterialParam_t
 	{
-		uint8_t m_Data[488] = {
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC8, 0x01, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x34, 0xC9, 0x19, 0x5C, 0x34, 0xC9, 0x19, 0x5C,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2A, 0x1A, 0x14, 0x84,
-			0x00, 0x00, 0x00, 0x00, 0xA1, 0x61, 0x55, 0x8B, 0x00, 0x00, 0x00, 0x00,
-			0x8F, 0x74, 0x98, 0xEB, 0x8F, 0x74, 0x98, 0xEB, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
-			0xF2, 0x00, 0xC8, 0x12, 0x00, 0x00, 0x00, 0x00, 0x04, 0x06, 0x27, 0xEA,
-			0x04, 0x06, 0x27, 0xEA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x3B, 0x93, 0x10, 0x76, 0x00, 0x00, 0x00, 0x00, 0xF2, 0xC7, 0x04, 0x4D,
-			0x00, 0x00, 0x00, 0x00, 0xF2, 0xD3, 0xF5, 0xB2, 0xF2, 0xD3, 0xF5, 0xB2,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7C, 0x52, 0xB4, 0xD0,
-			0x00, 0x00, 0x00, 0x00, 0xF2, 0xC7, 0x04, 0x4D, 0x00, 0x00, 0x00, 0x00,
-			0x03, 0xD3, 0x73, 0xF1, 0x03, 0xD3, 0x73, 0xF1, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x68, 0x26, 0x2B, 0xAF, 0x00, 0x00, 0x00, 0x00,
-			0xF2, 0xC7, 0x04, 0x4D, 0x00, 0x00, 0x00, 0x00, 0x89, 0x66, 0xE0, 0xDC,
-			0x53, 0x74, 0x37, 0xC8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xBF, 0xFA, 0x43, 0x8B,
-			0x00, 0x00, 0x00, 0x00, 0x1B, 0xD3, 0xE8, 0x63, 0x53, 0x74, 0x37, 0xC8,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD9, 0x08, 0x83, 0x1D,
-			0x00, 0x00, 0x00, 0x00, 0xBF, 0xFA, 0x43, 0x8B, 0x00, 0x00, 0x00, 0x00,
-			0xE6, 0x65, 0xC2, 0xC0, 0xE6, 0x65, 0xC2, 0xC0, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
-			0xE0, 0x15, 0xC7, 0x3B, 0x00, 0x00, 0x00, 0x00
+		struct StateParam_t
+		{
+			uint32_t m_NameUID;
+			uint32_t m_TypeUID;
+			uint16_t m_ParamIndex;
+
+			UFG_PAD(0x2);
 		};
 
-		uint16_t m_VisibilityFlags = 0x1F;
-		uint16_t mShadowFlags = 0x0;
-		uint8_t m_MaterialPadding[12] = {
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-		};
+		StateParam_t m_StateParam;
+
+		UFG_PAD(0x1C);
+
+		uint32_t m_NameUID;
+
+		UFG_PAD(0x4);
+
+		uint32_t m_TypeUID;
+		
+		UFG_PAD(0x4);
+	};
+
+	struct MaterialUser_t
+	{
+		uint16_t m_VisibilityFlags	= 0x1F;
+		uint16_t mShadowFlags		= 0x0;
+		uint8_t m_Align[12] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	};
+
+	struct Material_t : UFG::ResourceData_t
+	{
+		UFG_PAD(0x8);
+
+		uint64_t m_StateBlockMask[2] = { 0x0, 0x0 };
+		uint32_t m_NumParams;
+
+		UFG_PAD(0x4);
+
+		uint64_t m_MaterialUserOffset = 0;
 
 		Material_t()
 		{
 			// ResourceData
 			m_TypeUID	= 0xF5F8516F;
 			m_ChunkUID	= 0xB4C26312;
-			SetEntrySize(sizeof(Material_t));
 		}
 
-		void SetTextureNameUID(uint32_t p_NameUID)
+		void SetNumParams(uint32_t p_NumParams)
 		{
-			*reinterpret_cast<uint32_t*>(&m_Data[0x168]) = p_NameUID;
+			uint64_t m_MaterialTableSize = (static_cast<uint64_t>(p_NumParams) * sizeof(MaterialParam_t));
+			SetEntrySize(static_cast<uint32_t>(sizeof(Material_t) + m_MaterialTableSize + sizeof(MaterialUser_t)));
+
+			m_NumParams				= p_NumParams;
+			m_MaterialUserOffset	= (m_MaterialTableSize + 0x8);
 		}
 	};
 
@@ -230,18 +238,55 @@ namespace Illusion
 			Mesh.m_NumPrims		= p_NumPrims;
 		}
 
-		void CheckVertice(float* p_Vertice)
+		void CalculateAABB(float* p_VertexBuffer, uint32_t p_NumElements)
 		{
-			for (int i = 0; 3 > i; ++i)
+			for (uint32_t i = 0; p_NumElements > i; ++i)
 			{
-				if (p_Vertice[i] < m_AABBMin[i])
-					m_AABBMin[i] = p_Vertice[i];
-				else if (p_Vertice[i] > m_AABBMax[i])
-					m_AABBMax[i] = p_Vertice[i];
+				float* m_Vertex = &p_VertexBuffer[i * 3];
+				for (int v = 0; 3 > v; ++v)
+				{
+					if (m_Vertex[v] < m_AABBMin[v])
+						m_AABBMin[v] = m_Vertex[v];
+					else if (m_Vertex[v] > m_AABBMax[v])
+						m_AABBMax[v] = m_Vertex[v];
+				}
 			}
 		}
 	};
 }
+
+class CMaterial : public Illusion::Material_t
+{
+public:
+	std::vector<Illusion::MaterialParam_t> m_Params;
+	Illusion::MaterialUser_t m_MaterialUser;
+
+	void AddParam(uint32_t p_StateTypeUID, uint32_t p_StateNameUID, uint32_t p_TypeUID, uint32_t p_NameUID)
+	{
+		Illusion::MaterialParam_t m_Param;
+		memset(&m_Param, 0, sizeof(Illusion::MaterialParam_t));
+		{
+			m_Param.m_StateParam.m_TypeUID = p_StateTypeUID;
+			m_Param.m_StateParam.m_NameUID = p_StateNameUID;
+			m_Param.m_TypeUID = p_TypeUID;
+			m_Param.m_NameUID = p_NameUID;
+		}
+		m_Params.emplace_back(m_Param);
+		SetNumParams(static_cast<uint32_t>(m_Params.size()));
+	}
+
+	void AddParam(uint32_t p_StateUID, uint32_t p_TypeUID, uint32_t p_NameUID)
+	{
+		AddParam(p_StateUID, p_StateUID, p_TypeUID, p_NameUID);
+	}
+
+	void WriteToFile(FILE* p_File)
+	{
+		fwrite(this, sizeof(Illusion::Material_t), 1, p_File);
+		fwrite(m_Params.data(), sizeof(Illusion::MaterialParam_t), m_Params.size(), p_File);
+		fwrite(&m_MaterialUser, sizeof(Illusion::MaterialUser_t), 1, p_File);
+	}
+};
 
 class CModel
 {
@@ -263,18 +308,22 @@ public:
 			// ResourceData
 			SetEntrySize(sizeof(Illusion::Buffer_t) + m_DataSize);
 		}
+
+		void WriteToFile(FILE* p_File)
+		{
+			fwrite(this, sizeof(Illusion::Buffer_t), 1, p_File);
+			fwrite(m_DataPtr, sizeof(uint8_t), m_DataSize, p_File);
+		}
 	};
 
 	// Perm.Bin
-	Illusion::Material_t m_Material;
+	CMaterial m_Material;
 	Buffer_t m_IndexBuffer;
 	Buffer_t m_VertexBuffer;
 	Buffer_t m_UVBuffer;
 	Illusion::Model_t m_ModelData;
 
-	CModel() 
-	{ 
-	}
+	CModel() { }
 
 	~CModel()
 	{
@@ -441,28 +490,20 @@ public:
 			return;
 
 		// Material
-		fwrite(&m_Material, sizeof(Illusion::Material_t), 1, m_File);
+		m_Material.WriteToFile(m_File);
 
 		// IndexBuffer
-		fwrite(&m_IndexBuffer, sizeof(Illusion::Buffer_t), 1, m_File);
-		fwrite(m_IndexBuffer.m_DataPtr, sizeof(uint8_t), m_IndexBuffer.m_DataSize, m_File);
+		m_IndexBuffer.WriteToFile(m_File);
 
 		// VertexBuffer
-		fwrite(&m_VertexBuffer, sizeof(Illusion::Buffer_t), 1, m_File);
-		fwrite(m_VertexBuffer.m_DataPtr, sizeof(uint8_t), m_VertexBuffer.m_DataSize, m_File);
+		m_VertexBuffer.WriteToFile(m_File);
 
 		// UVBuffer
-		fwrite(&m_UVBuffer, sizeof(Illusion::Buffer_t), 1, m_File);
-		fwrite(m_UVBuffer.m_DataPtr, sizeof(uint8_t), m_UVBuffer.m_DataSize, m_File);
+		m_UVBuffer.WriteToFile(m_File);
 
 		// ModelData
 		{
-			// AABB
-			{
-				float* m_VertexBufferData = reinterpret_cast<float*>(m_VertexBuffer.m_DataPtr);
-				for (uint32_t i = 0; m_VertexBuffer.m_NumElements > i; ++i)
-					m_ModelData.CheckVertice(&m_VertexBufferData[i * 3]);
-			}
+			m_ModelData.CalculateAABB(reinterpret_cast<float*>(m_VertexBuffer.m_DataPtr), m_VertexBuffer.m_NumElements);
 
 			m_ModelData.Mesh.m_MaterialHandle.m_NameUID			= m_Material.m_NameUID;
 			m_ModelData.Mesh.m_IndexBufferHandle.m_NameUID		= m_IndexBuffer.m_NameUID;
@@ -477,9 +518,21 @@ public:
 	}
 };
 
-int g_Argc		= 0;
-char** g_Argv	= nullptr;
+HANDLE g_ConsoleOutput = 0;
+CONSOLE_SCREEN_BUFFER_INFO g_ConsoleBufferInfo;
+void InitConsole()
+{
+	g_ConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+	GetConsoleScreenBufferInfo(g_ConsoleOutput, &g_ConsoleBufferInfo);
+	SetConsoleTitleA(PROJECT_NAME);
+}
+void SetConColor(WORD p_Attribute) { SetConsoleTextAttribute(g_ConsoleOutput, p_Attribute); }
+void ResetConColor() { SetConColor(g_ConsoleBufferInfo.wAttributes); }
+void PrintError() { SetConColor(12); printf("[ ERROR ] "); ResetConColor(); }
+void PrintWarning() { SetConColor(14); printf("[ WARNING ] "); ResetConColor(); }
 
+int g_Argc = 0;
+char** g_Argv = nullptr;
 void InitArgParam(int p_Argc, char** p_Argv)
 {
 	g_Argc = p_Argc;
@@ -518,16 +571,19 @@ void ShowArgOptions()
 {
 	std::pair<const char*, const char*> m_Args[] =
 	{
-		{ "-o", "Object file to scribe." },
-		{ "-d", "Output directory, if not set it uses object folder." },
-		{ "-n", "Object internal name (optional)." },
-		{ "-t", "Texture name for model." },
-		{ "-ignoreuv", "Ignores uvmapping check." }
+		{ "-obj", "Object file to scribe." },
+		{ "-dir", "Output directory, if not set it uses object folder." },
+		{ "-name", "Object internal name (optional)." },
+		{ "-texdiffuse", "Texture diffuse name." },
+		{ "-texnormal", "Texture normal name." },
 	};
 
-	printf("Options:\n");
+	SetConColor(14); printf("Launch Options:\n");
 	for (auto& m_Pair : m_Args)
-		printf("\t%s\t%s\n", m_Pair.first, m_Pair.second);
+	{
+		SetConColor(13); printf("\t%s", m_Pair.first);
+		SetConColor(11); printf("\t%s\n", m_Pair.second);
+	}
 }
 
 int main(int p_Argc, char** p_Argv)
@@ -536,28 +592,34 @@ int main(int p_Argc, char** p_Argv)
 	int m_DebugKey = getchar();
 #endif
 
-	SetConsoleTitleA(("Model Scribe " PROJECT_VERSION));
+	InitConsole();
 	InitArgParam(p_Argc, p_Argv);
+	atexit(ResetConColor);
 
-	std::string m_ObjectFile		= GetArgParam("-o");
-	std::string m_OutputDirectory	= GetArgParam("-d");
-	std::string m_ObjectName		= GetArgParam("-n");
-	std::string m_TextureName		= GetArgParam("-t");
+	SetConColor(240);
+	printf(PROJECT_NAME "\n");
+	ResetConColor();
+
+	std::string m_ObjectFile		= GetArgParam("-obj");
+	std::string m_OutputDirectory	= GetArgParam("-dir");
+	std::string m_ObjectName		= GetArgParam("-name");
+	std::string m_TextureDiffuse	= GetArgParam("-texdiffuse");
+	std::string m_TextureNormal		= GetArgParam("-texnormal");
 
 	if (m_ObjectFile.empty())
 	{
-		printf("No object file set!\n");
+		PrintError(); printf("No object file set!\n");
 		ShowArgOptions();
 		return 1;
 	}
 
 	if (m_ObjectFile.find(".obj") == std::string::npos)
 	{
-		printf("Object file must have extension .obj!\n");
+		PrintError(); printf("Object file must have extension .obj!\n");
 		return 1;
 	}
 
-	printf("Object File: %s\n", &m_ObjectFile[0]);
+	SetConColor(224); printf("Object File: %s\n", &m_ObjectFile[0]); ResetConColor(); printf("\n");
 
 	if (m_ObjectName.empty())
 	{
@@ -571,73 +633,122 @@ int main(int p_Argc, char** p_Argv)
 		m_ObjectName = m_ObjectName.substr(0, m_ObjectName.find_last_of('.'));
 	}
 
-	if (m_TextureName.empty())
+	if (m_TextureDiffuse.empty())
 	{
-		printf("No texture name set!\n");
-		ShowArgOptions();
-		return 1;
+		PrintWarning(); printf("No texture diffuse name specified using default!\n");
+		m_TextureDiffuse = "DEFAULT";
 	}
-
-	std::transform(m_TextureName.begin(), m_TextureName.end(), m_TextureName.begin(), ::toupper);
-	uint32_t m_TextureHash = SDK::StringHash32(&m_TextureName[0]);
-	printf("Texture Name: %s (0x%X)\n", &m_TextureName[0], m_TextureHash);
 
 	CModel m_Model;
 	m_Model.LoadMesh(&m_ObjectFile[0]);
 
 	if (!m_Model.m_Mesh)
 	{
-		printf("Failed to load object file!\n");
+		PrintError(); printf("Failed to load object file!\n");
 		return 1;
 	}
 
 	if (!m_Model.IsUVMappingValid())
 	{
-		if (HasArgSet("-ignoreuv"))
-			printf("Object file contains invalid uv mapping, but '-ignoreuv' was specified!\n");
-		else
-		{
-			printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
-			return 1;
-		}
+		PrintWarning(); printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
 	}
 
 	m_Model.CreateBuffers();
 
 	if (!m_Model.AreBuffersValid())
 	{
-		printf("Failed to create buffer, make sure vertices/faces are correctly exported!\n");
+		PrintError(); printf("Failed to create buffer, make sure vertices/faces are correctly exported!\n");
 		return 1;
 	}
 
 	m_Model.SetName(&m_ObjectName[0]);
 
-	m_Model.m_Material.SetTextureNameUID(m_TextureHash);
-
-	printf("Hashes:\n");
+	struct PrintHashTable_t
 	{
-		printf("\tMaterial:\t0x%X\n", m_Model.m_Material.m_NameUID);
-		printf("\tIndexBuffer:\t0x%X\n", m_Model.m_IndexBuffer.m_NameUID);
-		printf("\tVertexBuffer:\t0x%X\n", m_Model.m_VertexBuffer.m_NameUID);
-		printf("\tUVBuffer:\t0x%X\n", m_Model.m_UVBuffer.m_NameUID);
-		printf("\tModelData:\t0x%X\n", m_Model.m_ModelData.m_NameUID);
+		const char* m_Name = nullptr;
+		std::map<std::string, uint32_t> m_Map;
+
+		PrintHashTable_t() {}
+		PrintHashTable_t(const char* p_Name) { m_Name = p_Name; };
+
+		void Add(const char* p_Name, uint32_t p_Hash) { m_Map[p_Name] = p_Hash; }
+	};
+	std::vector<PrintHashTable_t> m_PrintTables;
+
+	// Material
+	PrintHashTable_t m_MaterialTable("Material");
+	{
+		m_Model.m_Material.AddParam(SDK::StringHash32("iAlphaState"), MATERIAL_ALPHASTATE, UINT32_MAX);
+		m_Model.m_Material.AddParam(SDK::StringHash32("iRasterState"), MATERIAL_RASTERSTATE, UINT32_MAX);
+		m_Model.m_Material.AddParam(SDK::StringHash32("iShader"), MATERIAL_SHADER, SDK::StringHash32("HK_SCENERY"));
+		m_Model.m_Material.AddParam(SDK::StringHash32("sbDepthBiasSortLayer"), MATERIAL_STATEBLOCK, MATERIAL_DEFAULT_DepthBiasSortLayer);
+		m_Model.m_Material.AddParam(SDK::StringHash32("sbSpecularLook"), MATERIAL_STATEBLOCK, MATERIAL_DEFAULT_SpecularLook);
+		m_Model.m_Material.AddParam(SDK::StringHash32("sbTextureAnim"), MATERIAL_STATEBLOCK, MATERIAL_DEFAULT_TextureAnim);
+
+		// Diffuse
+		{
+			uint32_t m_Hash = SDK::StringHashUpper32(&m_TextureDiffuse[0]);
+			m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texDiffuse"), MATERIAL_TEXTURE, m_Hash);
+			m_MaterialTable.Add("Tex.Diffuse", m_Hash);
+		}
+
+		// Normal
+		if (!m_TextureNormal.empty())
+		{
+			uint32_t m_Hash = SDK::StringHashUpper32(&m_TextureNormal[0]);
+			m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texNormal"), MATERIAL_TEXTURE, m_Hash);
+			m_MaterialTable.Add("Tex.Normal", m_Hash);
+		}
+
+		m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texNoise"), MATERIAL_TEXTURE, SDK::StringHash32("LITWINDOWNOISE"));
+	}
+	m_PrintTables.emplace_back(m_MaterialTable);
+
+	// Perm Hashes
+	PrintHashTable_t m_PermHashesTable("Perm Hashes");
+	{
+		m_PermHashesTable.Add("Material", m_Model.m_Material.m_NameUID);
+		m_PermHashesTable.Add("IndexBuffer", m_Model.m_IndexBuffer.m_NameUID);
+		m_PermHashesTable.Add("VertexBuffer", m_Model.m_VertexBuffer.m_NameUID);
+		m_PermHashesTable.Add("UVBuffer", m_Model.m_UVBuffer.m_NameUID);
+		m_PermHashesTable.Add("ModelData", m_Model.m_ModelData.m_NameUID);
+	}
+	m_PrintTables.emplace_back(m_PermHashesTable);
+
+	for (auto& m_PrintTable : m_PrintTables)
+	{
+		SetConColor(14); printf("[ %s ]:\n", m_PrintTable.m_Name);
+
+		for (auto& m_Pair : m_PrintTable.m_Map)
+		{
+			SetConColor(13); printf("\t%s: ", &m_Pair.first[0]);
+			SetConColor(11); printf("\t0x%X\n", m_Pair.second);
+		}
+
+		printf("\n");
+		ResetConColor();
 	}
 
-	std::string m_OutputFileNameGeneric;
-	if (m_OutputDirectory.empty())
-		m_OutputFileNameGeneric = m_ObjectFile.substr(0, m_ObjectFile.find_last_of('.'));
-	else
-		m_OutputFileNameGeneric = m_OutputDirectory + "\\" + m_ObjectName;
-
-	std::string m_PermBinFileName = m_OutputFileNameGeneric + ".perm.bin";
-	std::string m_TempBinFileName = m_OutputFileNameGeneric + ".temp.bin";
+	// Output
 	{
-		m_Model.OutputFile(&m_PermBinFileName[0]);
+		std::string m_OutputFileNameGeneric;
+		if (m_OutputDirectory.empty())
+			m_OutputFileNameGeneric = m_ObjectFile.substr(0, m_ObjectFile.find_last_of('.'));
+		else
+			m_OutputFileNameGeneric = m_OutputDirectory + "\\" + m_ObjectName;
 
-		FILE* m_TempFile = fopen(&m_TempBinFileName[0], "wb");
-		if (m_TempFile)
-			fclose(m_TempFile);
+		std::string m_PermBinFileName = m_OutputFileNameGeneric + ".perm.bin";
+		std::string m_TempBinFileName = m_OutputFileNameGeneric + ".temp.bin";
+		{
+			m_Model.OutputFile(&m_PermBinFileName[0]);
+
+			FILE* m_TempFile = fopen(&m_TempBinFileName[0], "wb");
+			if (m_TempFile)
+				fclose(m_TempFile);
+		}
+
+		SetConColor(14); printf("[ Output ]:\n"); SetConColor(13);
+		printf("\t%s\n", &m_PermBinFileName[0]);
+		printf("\t%s\n\n", &m_TempBinFileName[0]);
 	}
-
-	printf("Output files:\n\t%s\n\t%s\n", &m_PermBinFileName[0], &m_TempBinFileName[0]);
 }
