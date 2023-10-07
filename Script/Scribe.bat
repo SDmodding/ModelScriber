@@ -37,10 +37,9 @@ IF "%~3"=="" (
 )
 
 set m_TextureScribeFilePath=%m_ScribePath%\%m_ModelTexturePrefix%_TS001
-set m_TexturePath==%m_ProjectPath%\%1\
 
 :: Setup stuff...
-set m_ModelPath=%m_ProjectPath%\%1\Model.obj
+set m_ModelPath=%m_ModelsPath%\%1\Model.obj
 set m_TextureDiffuseName=%m_ModelTexturePrefix%_Diffuse
 set m_TextureDiffusePath=%m_TexturesPath%\Diffuse.png
 set m_TextureNormalName=%m_ModelTexturePrefix%_Normal

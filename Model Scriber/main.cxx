@@ -6,7 +6,7 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION		"v1.1.0"
+#define PROJECT_VERSION		"v1.1.1"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 // Material Defines
@@ -127,7 +127,7 @@ namespace Illusion
 		Mesh_t()
 		{
 			m_PrimType = 0x3; // Triangles
-			m_VertexDeclHandle.m_NameUID = 0xF2700F96; // VertexDecl.UVN
+			m_VertexDeclHandle.m_NameUID = SDK::StringHash32("VertexDecl.UVN");
 		}
 	};
 
@@ -251,6 +251,37 @@ namespace Illusion
 						m_AABBMax[v] = m_Vertex[v];
 				}
 			}
+		}
+	};
+
+	struct UVNIndex_t
+	{
+		uint16_t m_UV[2];
+		uint8_t m_Normals[4];
+
+		void SetUV(float* p_UV)
+		{
+			HalfFloat m_UV0 = p_UV[0];
+			HalfFloat m_UV1 = (1.f - p_UV[1]);
+
+			m_UV[0] = m_UV0.bits;
+			m_UV[1] = m_UV1.bits;
+		}
+
+		void SetDummyNormals()
+		{
+			m_Normals[0] = 0x0;
+			m_Normals[1] = 0x0;
+			m_Normals[2] = 0x0;
+			m_Normals[3] = 0xFF;
+		}
+
+		void SetNormals(float* p_Normals)
+		{
+			m_Normals[0] = static_cast<uint8_t>((p_Normals[0] + 1.f) / 2.f * 255.f);
+			m_Normals[1] = static_cast<uint8_t>((p_Normals[1] + 1.f) / 2.f * 255.f);
+			m_Normals[2] = static_cast<uint8_t>((p_Normals[2] + 1.f) / 2.f * 255.f);
+			m_Normals[3] = 0xFF;
 		}
 	};
 }
@@ -399,17 +430,19 @@ public:
 
 	bool IsUVMappingValid()
 	{
-		if (m_Mesh->texcoord_count > 1)
+		for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
 		{
-			for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
-			{
-				fastObjIndex* m_Index = &m_Mesh->indices[i];
-				if (m_Index->p != m_Index->t) // Check if texture index isnt different to face index, otherwise we fucked...
-					return false;
-			}
+			fastObjIndex* m_Index = &m_Mesh->indices[i];
+			if (m_Index->p != m_Index->t) // Check if texture index isnt different to face index, otherwise we fucked...
+				return false;
 		}
 
 		return true;
+	}
+
+	bool AreNormalsValid()
+	{
+		return (m_Mesh->normal_count == m_Mesh->texcoord_count);
 	}
 
 	void CreateBuffers()	
@@ -442,7 +475,7 @@ public:
 			memcpy(m_VertexBuffer.m_DataPtr, &m_Mesh->positions[3], m_VertexBuffer.m_DataSize);
 		}
 
-		// UVBuffer
+		// UVNBuffer
 		{
 			m_UVBuffer.m_Type				= 0x0;
 			m_UVBuffer.m_Size				= ((m_Mesh->texcoord_count - 1) * (sizeof(uint16_t) * 4));
@@ -450,31 +483,21 @@ public:
 			m_UVBuffer.m_NumElements		= (m_Mesh->texcoord_count - 1);
 			m_UVBuffer.Initialize();
 
-			struct UVBufferIndex_t
-			{
-				uint16_t m_UV[2];
-				uint8_t m_Unknown[4];
-			};
-			UVBufferIndex_t* m_UVBufferData = reinterpret_cast<UVBufferIndex_t*>(m_UVBuffer.m_DataPtr);
+			Illusion::UVNIndex_t* m_UVNIndexArray = reinterpret_cast<Illusion::UVNIndex_t*>(m_UVBuffer.m_DataPtr);
 
 			for (uint32_t i = 1; m_Mesh->texcoord_count > i; ++i)
 			{
-				float* m_UV		= &m_Mesh->texcoords[i * 2];
-				HalfFloat m_UV0 = m_UV[0];
-				HalfFloat m_UV1 = (1.f - m_UV[1]);
+				Illusion::UVNIndex_t* m_UVNIndex = &m_UVNIndexArray[i - 1];
+				m_UVNIndex->SetUV(&m_Mesh->texcoords[i * 2]);
 
-				UVBufferIndex_t* m_UVBufferIndex = &m_UVBufferData[i - 1];
-				{
-					m_UVBufferIndex->m_UV[0] = m_UV0.bits;
-					m_UVBufferIndex->m_UV[1] = m_UV1.bits;
-
-					uint8_t m_Padding[] = { 0x7F, 0xFF, 0x7F, 0xFF };
-					memcpy(m_UVBufferIndex->m_Unknown, m_Padding, sizeof(m_Padding));
-				}
+				if (m_Mesh->normal_count > i)
+					m_UVNIndex->SetNormals(&m_Mesh->normals[i * 3]);
+				else
+					m_UVNIndex->SetDummyNormals();
 			}
 		}
 	}
-
+		
 	bool AreBuffersValid()
 	{
 		if (m_IndexBuffer.m_NumElements == 0 || m_VertexBuffer.m_NumElements == 0)
@@ -648,9 +671,20 @@ int main(int p_Argc, char** p_Argv)
 		return 1;
 	}
 
+	if (1 >= m_Model.m_Mesh->texcoord_count)
+	{
+		PrintError(); printf("Object has no uv mapping!\n");
+		return 1;
+	}
+
 	if (!m_Model.IsUVMappingValid())
 	{
 		PrintWarning(); printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
+	}
+
+	if (!m_Model.AreNormalsValid())
+	{
+		PrintWarning(); printf("Object file contains invalid normals mapping, size doesn't match face count!\n");
 	}
 
 	m_Model.CreateBuffers();
