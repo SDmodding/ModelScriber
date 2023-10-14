@@ -1,6 +1,6 @@
 To use this script you need to have in this folder:
-- ModelScriber.exe
-- TextureScriberPC64.exe
+- [ModelScriber.exe](https://github.com/SDmodding/ModelScriber/releases)
+- [TextureScriberPC64.exe](https://github.com/SDmodding/TextureScriber/releases)
 
 If you have everything in the folder then open command line in that folder.
 Usage is simple:
