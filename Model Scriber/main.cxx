@@ -6,7 +6,7 @@
 #include "3rdParty/umHalf.h"
 
 // Defines
-#define PROJECT_VERSION		"v1.1.1"
+#define PROJECT_VERSION		"v1.1.2"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 // Material Defines
@@ -579,6 +579,15 @@ std::string GetArgParam(const char* p_Arg)
 	return "";
 }
 
+int GetArgParamInt(const char* p_Arg)
+{
+	std::string m_Param = GetArgParam(p_Arg);
+	if (m_Param.empty())
+		return 0;
+
+	return atoi(&m_Param[0]);
+}
+
 bool HasArgSet(const char* p_Arg)
 {
 	for (int i = 0; g_Argc > i; ++i)
@@ -598,14 +607,27 @@ void ShowArgOptions()
 		{ "-dir", "Output directory, if not set it uses object folder." },
 		{ "-name", "Object internal name (optional)." },
 		{ "-texdiffuse", "Texture diffuse name." },
-		{ "-texnormal", "Texture normal name." },
+		{ "-texnormal", "Texture normal map name." },
+		{ "-texspecular", "Texture specular map name." },
+		{ "-rasterstate", "0 - None\n1 - Normal\n2 - Disable Write\n3 - Invert Disable Write\n4 - Disable Depth Test\n5 - Double Sided\n6 - Double Sided Alpha\n7 - Invert Culling" },
 	};
 
 	SetConColor(14); printf("Launch Options:\n");
 	for (auto& m_Pair : m_Args)
 	{
 		SetConColor(13); printf("\t%s", m_Pair.first);
-		SetConColor(11); printf("\t%s\n", m_Pair.second);
+		SetConColor(11); 
+		
+		std::string m_Description = m_Pair.second;
+		size_t m_DescNewline = m_Description.find('\n');
+		while (m_DescNewline != std::string::npos)
+		{
+			++m_DescNewline;
+			m_Description.insert(m_DescNewline, "\t\t\t");
+			m_DescNewline = m_Description.find('\n', m_DescNewline);
+		}
+
+		printf("\t%s\n", &m_Description[0]);
 	}
 }
 
@@ -628,6 +650,7 @@ int main(int p_Argc, char** p_Argv)
 	std::string m_ObjectName		= GetArgParam("-name");
 	std::string m_TextureDiffuse	= GetArgParam("-texdiffuse");
 	std::string m_TextureNormal		= GetArgParam("-texnormal");
+	std::string m_TextureSpecular	= GetArgParam("-texspecular");
 
 	if (m_ObjectFile.empty())
 	{
@@ -713,7 +736,25 @@ int main(int p_Argc, char** p_Argv)
 	PrintHashTable_t m_MaterialTable("Material");
 	{
 		m_Model.m_Material.AddParam(SDK::StringHash32("iAlphaState"), MATERIAL_ALPHASTATE, UINT32_MAX);
-		m_Model.m_Material.AddParam(SDK::StringHash32("iRasterState"), MATERIAL_RASTERSTATE, UINT32_MAX);
+
+		// RasterState
+		{
+			uint32_t m_Hash = UINT32_MAX;
+			switch (GetArgParamInt("rasterstate"))
+			{
+				case 1: m_Hash = SDK::StringHash32("Illusion.RasterState.Normal"); break;
+				case 2: m_Hash = SDK::StringHash32("Illusion.RasterState.DisableWrite"); break;
+				case 3: m_Hash = SDK::StringHash32("Illusion.RasterState.InvertDisableWrite"); break;
+				case 4: m_Hash = SDK::StringHash32("Illusion.RasterState.DisableDepthTest"); break;
+				case 5: m_Hash = SDK::StringHash32("Illusion.RasterState.DoubleSided"); break;
+				case 6: m_Hash = SDK::StringHash32("Illusion.RasterState.DoubleSidedAlpha"); break;
+				case 7: m_Hash = SDK::StringHash32("Illusion.RasterState.InvertCulling"); break;
+			}
+			m_Model.m_Material.AddParam(SDK::StringHash32("iRasterState"), MATERIAL_RASTERSTATE, m_Hash);
+			if (m_Hash != UINT32_MAX)
+				m_MaterialTable.Add("RasterState", m_Hash);
+		}
+
 		m_Model.m_Material.AddParam(SDK::StringHash32("iShader"), MATERIAL_SHADER, SDK::StringHash32("HK_SCENERY"));
 		m_Model.m_Material.AddParam(SDK::StringHash32("sbDepthBiasSortLayer"), MATERIAL_STATEBLOCK, MATERIAL_DEFAULT_DepthBiasSortLayer);
 		m_Model.m_Material.AddParam(SDK::StringHash32("sbSpecularLook"), MATERIAL_STATEBLOCK, MATERIAL_DEFAULT_SpecularLook);
@@ -732,6 +773,14 @@ int main(int p_Argc, char** p_Argv)
 			uint32_t m_Hash = SDK::StringHashUpper32(&m_TextureNormal[0]);
 			m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texNormal"), MATERIAL_TEXTURE, m_Hash);
 			m_MaterialTable.Add("Tex.Normal", m_Hash);
+		}
+
+		// Specular
+		if (!m_TextureSpecular.empty())
+		{
+			uint32_t m_Hash = SDK::StringHashUpper32(&m_TextureSpecular[0]);
+			m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texSpecular"), MATERIAL_TEXTURE, m_Hash);
+			m_MaterialTable.Add("Tex.Specular", m_Hash);
 		}
 
 		m_Model.m_Material.AddParam(SDK::StringHash32("iTexture"), SDK::StringHash32("texNoise"), MATERIAL_TEXTURE, SDK::StringHash32("LITWINDOWNOISE"));

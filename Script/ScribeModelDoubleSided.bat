@@ -39,6 +39,6 @@ IF "%~4"=="1" (
 
 :: Process
 mkdir Data
-%m_ModelScriberPath% %m_ModelScriberArgs%
+%m_ModelScriberPath% %m_ModelScriberArgs% -rasterstate 5
 
 :G_END

@@ -16,11 +16,12 @@ IF "%~1"=="" (
 set m_ModelsPath=Models\%1
 set m_TexturesPath=Textures\%1
 
-set m_DiffuseCompression="DXT5"
+set m_Compression="DXT5"
 set m_NormalCompression="DXT1_N"
 
 set m_DiffuseFilename=Diffuse.png
 set m_NormalFilename=Normal.png
+set m_SpecularFilename=Specular.png
 
 IF EXIST %m_TexturesPath%\%m_DiffuseFilename% (
     set m_DiffuseFilePath=%m_TexturesPath%\%m_DiffuseFilename%
@@ -34,6 +35,12 @@ IF EXIST %m_TexturesPath%\%m_NormalFilename% (
     set m_NormalFilePath=%m_ModelsPath%\%m_NormalFilename%
 )
 
+IF EXIST %m_TexturesPath%\%m_SpecularFilename% (
+    set m_SpecularFilePath=%m_TexturesPath%\%m_SpecularFilename%
+) else (
+    set m_SpecularFilePath=%m_ModelsPath%\%m_SpecularFilename%
+)
+
 :: Scribe path
 IF "%~2"=="" (
     set m_ScribePath=Data
@@ -44,11 +51,14 @@ IF "%~2"=="" (
 :: Texture Scriber config
 set m_ConfigPath=config.xml
 echo ^<MediaPack^> > %m_ConfigPath%
-echo ^<Resource OutputName="%1_D" Compression=%m_DiffuseCompression%^>%m_DiffuseFilePath%^</Resource^> >> %m_ConfigPath%
+echo ^<Resource OutputName="%1_D" Compression=%m_Compression%^>%m_DiffuseFilePath%^</Resource^> >> %m_ConfigPath%
 
 :: Setup additional textures
 IF EXIST %m_NormalFilePath% (
     echo ^<Resource OutputName="%1_N" Compression=%m_NormalCompression%^>%m_NormalFilePath%^</Resource^> >> %m_ConfigPath%
+)
+IF EXIST %m_SpecularFilePath% (
+    echo ^<Resource OutputName="%1_S" Compression=%m_Compression%^>%m_SpecularFilePath%^</Resource^> >> %m_ConfigPath%
 )
 echo ^</MediaPack^> >> %m_ConfigPath%
 
