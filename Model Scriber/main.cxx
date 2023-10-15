@@ -651,6 +651,7 @@ int main(int p_Argc, char** p_Argv)
 	std::string m_TextureDiffuse	= GetArgParam("-texdiffuse");
 	std::string m_TextureNormal		= GetArgParam("-texnormal");
 	std::string m_TextureSpecular	= GetArgParam("-texspecular");
+	int m_RasterState				= GetArgParamInt("-rasterstate");
 
 	if (m_ObjectFile.empty())
 	{
@@ -740,7 +741,7 @@ int main(int p_Argc, char** p_Argv)
 		// RasterState
 		{
 			uint32_t m_Hash = UINT32_MAX;
-			switch (GetArgParamInt("rasterstate"))
+			switch (m_RasterState)
 			{
 				case 1: m_Hash = SDK::StringHash32("Illusion.RasterState.Normal"); break;
 				case 2: m_Hash = SDK::StringHash32("Illusion.RasterState.DisableWrite"); break;
