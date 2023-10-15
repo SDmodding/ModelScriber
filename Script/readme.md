@@ -1,16 +1,28 @@
-To use this script you need to have in this folder:
+## Before use
+
+You need to get those files in the folder:
 - [ModelScriber.exe](https://github.com/SDmodding/ModelScriber/releases)
 - [TextureScriberPC64.exe](https://github.com/SDmodding/TextureScriber/releases)
 
 If you have everything in the folder then open command line in that folder.
-Usage is simple:
-    Scribe [Model name] [Path (Optional)] [Texture (Optional)]
 
-Example usage for the example model if there was any:
-    Scribe Example
+## Model
+`ScribeModel [Model Name] [Texture Name] [1 (If using normal map)]`
+- Model Name:
+    - You need to have folder with that name under `Models`
+    - That folder need to contain `Model.obj`
+- Texture Name:
+    - Use texture name that you gonna use also with `ScribeTexture`
+    - If the texture is not shared with other models just use same name as model name.
 
-    - If you run that script above with the params and have valid obj file and texture file it scribe model & texture under:
-        Data\ExampleModel\...
-
-Example usage for shared texture:
-    Scribe Example \ Example
+## Texture
+`ScribeTexture [Texture Name] [Path (Optional)]`
+- Texture Name:
+    - You need to have folder with that name under `Models` or `Textures (When shared)`
+    - Supported files (If you have TGA file rename extension to PNG):
+        - Diffuse.png
+        - Normal.png
+- Path:
+    - If you gonna use the model in some certain path you need to define it!
+    - This will output texture under folder `Data\...`
+    - The game uses the path for resource UID, when changing the path you need to scribe the texture again with new path!
