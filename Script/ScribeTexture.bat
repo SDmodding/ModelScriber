@@ -53,7 +53,7 @@ IF EXIST %m_NormalFilePath% (
 echo ^</MediaPack^> >> %m_ConfigPath%
 
 :: Process
-TextureScriberPC64.exe PC64 "%m_ScribePath%\%1.perm.bin" "%m_ScribePath%\%1.temp.bin" "%m_ConfigPath%"
+TextureScriberPC64.exe PC64 "%m_ScribePath%\%1_TS001.perm.bin" "%m_ScribePath%\%1_TS001.temp.bin" "%m_ConfigPath%"
 del %m_ConfigPath%
 
 :G_END
