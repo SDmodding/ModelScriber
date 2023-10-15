@@ -33,6 +33,7 @@ IF "%~3"=="1" (
 )
 
 :: Process
+mkdir Data
 %m_ModelScriberPath% %m_ModelScriberArgs%
 
 :G_END
