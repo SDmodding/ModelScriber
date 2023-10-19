@@ -1,3 +1,6 @@
+## Blender Script
+If you use blender you can get this script: https://github.com/SDmodding/ModelScriberBlender
+
 ## Before use
 
 You need to get those files in the folder:
