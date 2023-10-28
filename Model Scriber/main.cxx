@@ -1,12 +1,16 @@
-#include <iostream>
-#include <Windows.h>
-#include <vector>
-#include <map>
+// 3rdParty
 #include "3rdParty/fast_obj.h"
 #include "3rdParty/umHalf.h"
 
+// Headers
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <map>
+#include <Windows.h>
+
 // Defines
-#define PROJECT_VERSION		"v1.1.2"
+#define PROJECT_VERSION		"v1.2.0"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 // Material Defines
@@ -25,272 +29,101 @@
 #define UFG_PAD_INSERT(x, y) x ## y
 #define UFG_PAD_DEFINE(x, y) UFG_PAD_INSERT(x, y)
 #define UFG_PAD(size) char UFG_PAD_DEFINE(padding_, __LINE__)[size] = { 0x0 }
+#include <SDK/Optional/PermFile/.Includes.hpp>
 #include <SDK/Optional/StringHash.hpp>
 
-namespace UFG
+// Helper
+namespace Helper
 {
-	struct ResourceData_t
+	void SetUV(uint16_t* p_UVBytes, float* p_UV)
 	{
-		uint32_t m_TypeUID = 0x0;
-		uint32_t m_EntrySize[2] = { 0x0, 0x0 };
+		HalfFloat m_UV0 = p_UV[0];
+		HalfFloat m_UV1 = (1.f - p_UV[1]);
 
-		UFG_PAD(0x1C);
+		p_UVBytes[0] = m_UV0.bits;
+		p_UVBytes[1] = m_UV1.bits;
+	}
 
-		uint32_t m_NameUID = 0x0;
+	uint8_t GetPackedFloat(float p_Value)
+	{
+		return static_cast<uint8_t>((p_Value + 1.f) / 2.f * 255.f);
+	}
 
-		UFG_PAD(0x14);
+	void SetPackedFloat3(uint8_t* p_ArrayBytes, float* p_Array)
+	{
+		p_ArrayBytes[0] = GetPackedFloat(p_Array[0]);
+		p_ArrayBytes[1] = GetPackedFloat(p_Array[1]);
+		p_ArrayBytes[2] = GetPackedFloat(p_Array[2]);
+	}
 
-		uint32_t m_ChunkUID = 0x0;
-
-		char m_DebugName[36];
-
-		ResourceData_t()
-		{
-			memset(m_DebugName, 0, sizeof(m_DebugName));
-		}
-
-		void SetEntrySize(uint32_t p_Size)
-		{
-			m_EntrySize[0] = m_EntrySize[1] = (p_Size - 0x10);
-		}
-	};
+	void SetPackedFloat4(uint8_t* p_ArrayBytes, float* p_Array)
+	{
+		p_ArrayBytes[0] = GetPackedFloat(p_Array[0]);
+		p_ArrayBytes[1] = GetPackedFloat(p_Array[1]);
+		p_ArrayBytes[2] = GetPackedFloat(p_Array[2]);
+		p_ArrayBytes[3] = GetPackedFloat(p_Array[3]);
+	}
 }
 
-namespace Illusion
+// Classes
+class CBuffer : public Illusion::Buffer_t
 {
-	struct Buffer_t : UFG::ResourceData_t
+public:
+	void* m_DataPtr = nullptr;
+	uint32_t m_DataSize = 0;
+
+	CBuffer()
 	{
-		uint32_t m_Type = 0x0;
-		uint32_t m_Size = 0x0;
-		uint64_t m_DataOffset = 0xD0;
-		uint32_t m_ElementSize = 0x0;
-		uint32_t m_NumElements = 0x0;
+		// ResourceData
+		m_TypeUID	= 0x7A971479;
+		m_ChunkUID	= 0x92CDEC8F;
+	}
 
-		uint8_t m_BufferPadding[192] = {
-			0xA0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x4D, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC6, 0x42,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x30, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-		};
-
-		Buffer_t()
-		{
-			// ResourceData
-			m_TypeUID	= 0x7A971479;
-			m_ChunkUID	= 0x92CDEC8F;
-		}
-
-		uint32_t GetBytesToReserve()
-		{
-			uint32_t m_Reserve	= m_Size;
-			uint32_t m_Align	= (m_Size % 0x10);
-			if (m_Align != 0x0)
-				m_Reserve += (0x10 - m_Align);
-
-			return m_Reserve;
-		}
-	};
-
-	struct Mesh_t
+	void InitializeSize(uint32_t p_NumElements, uint32_t p_ElementSize)
 	{
-		struct Handle_t
-		{
-			UFG_PAD(0x18);
+		m_NumElements	= p_NumElements;
+		m_ElementSize	= p_ElementSize;
+		m_Size			= (m_NumElements * m_ElementSize);
+	}
 
-			uint32_t m_NameUID = 0x0;
-
-			UFG_PAD(0x4);
-		};
-
-		Handle_t m_MaterialHandle;
-		Handle_t m_VertexDeclHandle;
-		Handle_t m_IndexBufferHandle;
-		Handle_t m_VertexBufferHandles[4];
-		int m_PrimType = 0;
-		int m_IndexStart = 0;
-		uint32_t m_NumPrims = 0;
-		uint32_t m_Pad = 0;
-		const char* m_Description = nullptr;
-
-		Mesh_t()
-		{
-			m_PrimType = 0x3; // Triangles
-			m_VertexDeclHandle.m_NameUID = SDK::StringHash32("VertexDecl.UVN");
-		}
-	};
-
-	struct MaterialParam_t
+	void Initialize()
 	{
-		struct StateParam_t
-		{
-			uint32_t m_NameUID;
-			uint32_t m_TypeUID;
-			uint16_t m_ParamIndex;
+		m_DataSize = GetBytesToReserve();
+		m_DataPtr = malloc(m_DataSize);
+		memset(m_DataPtr, 0, m_DataSize);
 
-			UFG_PAD(0x2);
-		};
+		// ResourceData
+		SetEntrySize(sizeof(Illusion::Buffer_t) + m_DataSize);
+	}
 
-		StateParam_t m_StateParam;
-
-		UFG_PAD(0x1C);
-
-		uint32_t m_NameUID;
-
-		UFG_PAD(0x4);
-
-		uint32_t m_TypeUID;
-		
-		UFG_PAD(0x4);
-	};
-
-	struct MaterialUser_t
+	void WriteToFile(FILE* p_File)
 	{
-		uint16_t m_VisibilityFlags	= 0x1F;
-		uint16_t mShadowFlags		= 0x0;
-		uint8_t m_Align[12] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	};
-
-	struct Material_t : UFG::ResourceData_t
-	{
-		UFG_PAD(0x8);
-
-		uint64_t m_StateBlockMask[2] = { 0x0, 0x0 };
-		uint32_t m_NumParams;
-
-		UFG_PAD(0x4);
-
-		uint64_t m_MaterialUserOffset = 0;
-
-		Material_t()
-		{
-			// ResourceData
-			m_TypeUID	= 0xF5F8516F;
-			m_ChunkUID	= 0xB4C26312;
-		}
-
-		void SetNumParams(uint32_t p_NumParams)
-		{
-			uint64_t m_MaterialTableSize = (static_cast<uint64_t>(p_NumParams) * sizeof(MaterialParam_t));
-			SetEntrySize(static_cast<uint32_t>(sizeof(Material_t) + m_MaterialTableSize + sizeof(MaterialUser_t)));
-
-			m_NumParams				= p_NumParams;
-			m_MaterialUserOffset	= (m_MaterialTableSize + 0x8);
-		}
-	};
-
-	struct Model_t : UFG::ResourceData_t
-	{
-		float m_AABBMin[3];
-		uint32_t m_NumPrims;
-		float m_AABBMax[3];
-
-		uint8_t m_MeshPadding[252] = {
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x41, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x30, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-		};
-
-		Mesh_t Mesh;
-
-		UFG_PAD(0x18);
-
-		Model_t()
-		{
-			// ResourceData
-			m_TypeUID	= 0x6DF963B3;
-			m_ChunkUID	= 0xA2ADCD77;
-			SetEntrySize(sizeof(Model_t));
-		}
-
-		void SetNumPrims(uint32_t p_NumPrims)
-		{
-			m_NumPrims			= p_NumPrims;
-			Mesh.m_NumPrims		= p_NumPrims;
-		}
-
-		void CalculateAABB(float* p_VertexBuffer, uint32_t p_NumElements)
-		{
-			for (uint32_t i = 0; p_NumElements > i; ++i)
-			{
-				float* m_Vertex = &p_VertexBuffer[i * 3];
-				for (int v = 0; 3 > v; ++v)
-				{
-					if (m_Vertex[v] < m_AABBMin[v])
-						m_AABBMin[v] = m_Vertex[v];
-					else if (m_Vertex[v] > m_AABBMax[v])
-						m_AABBMax[v] = m_Vertex[v];
-				}
-			}
-		}
-	};
-
-	struct UVNIndex_t
-	{
-		uint16_t m_UV[2];
-		uint8_t m_Normals[4];
-
-		void SetUV(float* p_UV)
-		{
-			HalfFloat m_UV0 = p_UV[0];
-			HalfFloat m_UV1 = (1.f - p_UV[1]);
-
-			m_UV[0] = m_UV0.bits;
-			m_UV[1] = m_UV1.bits;
-		}
-
-		void SetDummyNormals()
-		{
-			m_Normals[0] = 0x0;
-			m_Normals[1] = 0x0;
-			m_Normals[2] = 0x0;
-			m_Normals[3] = 0xFF;
-		}
-
-		void SetNormals(float* p_Normals)
-		{
-			m_Normals[0] = static_cast<uint8_t>((p_Normals[0] + 1.f) / 2.f * 255.f);
-			m_Normals[1] = static_cast<uint8_t>((p_Normals[1] + 1.f) / 2.f * 255.f);
-			m_Normals[2] = static_cast<uint8_t>((p_Normals[2] + 1.f) / 2.f * 255.f);
-			m_Normals[3] = 0xFF;
-		}
-	};
-}
+		fwrite(this, sizeof(Illusion::Buffer_t), 1, p_File);
+		fwrite(m_DataPtr, sizeof(uint8_t), m_DataSize, p_File);
+	}
+};
 
 class CMaterial : public Illusion::Material_t
 {
 public:
 	std::vector<Illusion::MaterialParam_t> m_Params;
 	Illusion::MaterialUser_t m_MaterialUser;
+
+	CMaterial()
+	{
+		// ResourceData
+		m_TypeUID	= 0xF5F8516F;
+		m_ChunkUID	= 0xB4C26312;
+	}
+
+	void SetNumParams(uint32_t p_NumParams)
+	{
+		uint64_t m_MaterialTableSize = (static_cast<uint64_t>(p_NumParams) * sizeof(Illusion::MaterialParam_t));
+		SetEntrySize(static_cast<uint32_t>(sizeof(Material_t) + m_MaterialTableSize + sizeof(Illusion::MaterialUser_t)));
+
+		m_NumParams = p_NumParams;
+		m_MaterialUserOffset = (m_MaterialTableSize + 0x8);
+	}
 
 	void AddParam(uint32_t p_StateTypeUID, uint32_t p_StateNameUID, uint32_t p_TypeUID, uint32_t p_NameUID)
 	{
@@ -319,47 +152,72 @@ public:
 	}
 };
 
+class CModelData : public Illusion::ModelData_t
+{
+public:
+	CModelData()
+	{
+		// ResourceData
+		m_TypeUID	= 0x6DF963B3;
+		m_ChunkUID	= 0xA2ADCD77;
+
+		// Handles
+		m_MaterialTableHandle.m_NameUID = 0x0;
+		m_BonePaletteHandle.m_NameUID	= 0x0;
+
+		// Offsets
+		m_MeshOffset		= 0xA8;
+		m_ModelUserOffset	= 0x88;
+	}
+
+	void SetNumMeshes(uint32_t p_NumMeshes)
+	{
+		m_NumMeshes = 1;
+		SetEntrySize(sizeof(Illusion::ModelData_t) + sizeof(Illusion::ModelUser_t) + (0x110 * static_cast<int64_t>(m_NumMeshes)) + 0x38);
+	}
+
+	void CalculateAABB(float* p_VertexBuffer, uint32_t p_NumElements)
+	{
+		for (uint32_t i = 0; p_NumElements > i; ++i)
+		{
+			float* m_Vertex = &p_VertexBuffer[i * 3];
+			for (int v = 0; 3 > v; ++v)
+			{
+				if (m_Vertex[v] < m_AABBMin[v])
+					m_AABBMin[v] = m_Vertex[v];
+				else if (m_Vertex[v] > m_AABBMax[v])
+					m_AABBMax[v] = m_Vertex[v];
+			}
+		}
+	}
+};
+
 class CModel
 {
 public:
-	fastObjMesh* m_Mesh = nullptr;
+	fastObjMesh* m_ObjMesh = nullptr;
 	uint32_t m_NameUID = 0x0;
-
-	struct Buffer_t : Illusion::Buffer_t
-	{
-		void* m_DataPtr			= nullptr;
-		uint32_t m_DataSize		= 0;
-
-		void Initialize()
-		{
-			m_DataSize	= GetBytesToReserve();
-			m_DataPtr	= malloc(m_DataSize);
-			memset(m_DataPtr, 0, m_DataSize);
-
-			// ResourceData
-			SetEntrySize(sizeof(Illusion::Buffer_t) + m_DataSize);
-		}
-
-		void WriteToFile(FILE* p_File)
-		{
-			fwrite(this, sizeof(Illusion::Buffer_t), 1, p_File);
-			fwrite(m_DataPtr, sizeof(uint8_t), m_DataSize, p_File);
-		}
-	};
 
 	// Perm.Bin
 	CMaterial m_Material;
-	Buffer_t m_IndexBuffer;
-	Buffer_t m_VertexBuffer;
-	Buffer_t m_UVBuffer;
-	Illusion::Model_t m_ModelData;
+	CBuffer m_IndexBuffer;
+	CBuffer m_VertexBuffer;
+	CBuffer m_UVBuffer;
+	CModelData m_ModelData;
+	Illusion::ModelUser_t m_ModelUser;
+	Illusion::Mesh_t m_Mesh;
 
-	CModel() { }
+	CModel() 
+	{ 
+		// ModelUser
+		m_ModelUser.m_SoftBodyDataOffset	= (sizeof(Illusion::ModelUser_t) + 0x10 + (0x110 * 0x1)); // 0x110 (Mesh Align Size) * 0x1 (Mesh Count)
+		m_ModelUser.m_HasSoftBodyInfo		= 0;
+	}
 
 	~CModel()
 	{
-		if (m_Mesh)
-			fast_obj_destroy(m_Mesh);
+		if (m_ObjMesh)
+			fast_obj_destroy(m_ObjMesh);
 
 		if (m_IndexBuffer.m_DataPtr)
 			free(m_IndexBuffer.m_DataPtr);
@@ -425,14 +283,14 @@ public:
 	
 	void LoadMesh(const char* p_FilePath)
 	{
-		m_Mesh = fast_obj_read(p_FilePath);
+		m_ObjMesh = fast_obj_read(p_FilePath);
 	}
 
 	bool IsUVMappingValid()
 	{
-		for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
+		for (uint32_t i = 0; m_ObjMesh->index_count > i; ++i)
 		{
-			fastObjIndex* m_Index = &m_Mesh->indices[i];
+			fastObjIndex* m_Index = &m_ObjMesh->indices[i];
 			if (m_Index->p != m_Index->t) // Check if texture index isnt different to face index, otherwise we fucked...
 				return false;
 		}
@@ -442,7 +300,7 @@ public:
 
 	bool AreNormalsValid()
 	{
-		return (m_Mesh->normal_count == m_Mesh->texcoord_count);
+		return (m_ObjMesh->normal_count == m_ObjMesh->texcoord_count);
 	}
 
 	void CreateBuffers()	
@@ -450,51 +308,119 @@ public:
 		// IndexBuffer
 		{
 			m_IndexBuffer.m_Type			= 0x1;
-			m_IndexBuffer.m_Size			= (m_Mesh->face_count * (sizeof(uint16_t) * 3));
+			m_IndexBuffer.m_Size			= (m_ObjMesh->face_count * (sizeof(uint16_t) * 3));
 			m_IndexBuffer.m_ElementSize		= sizeof(uint16_t);
-			m_IndexBuffer.m_NumElements		= (m_Mesh->face_count * sizeof(uint16_t));
+			m_IndexBuffer.m_NumElements		= (m_ObjMesh->face_count * sizeof(uint16_t));
 			m_IndexBuffer.Initialize();
 
 			uint16_t* m_IndexBufferData = reinterpret_cast<uint16_t*>(m_IndexBuffer.m_DataPtr);
 
-			for (uint32_t i = 0; m_Mesh->index_count > i; ++i)
+			for (uint32_t i = 0; m_ObjMesh->index_count > i; ++i)
 			{
-				fastObjIndex* m_Index = &m_Mesh->indices[i];
+				fastObjIndex* m_Index = &m_ObjMesh->indices[i];
 				m_IndexBufferData[i] = (m_Index->p - 1);
 			}
 		}
 
-		// VertexBuffer
+		switch (m_Mesh.m_VertexDeclHandle.m_NameUID)
 		{
-			m_VertexBuffer.m_Type			= 0x0;
-			m_VertexBuffer.m_Size			= ((m_Mesh->position_count - 1) * sizeof(float) * 3);
-			m_VertexBuffer.m_ElementSize	= (sizeof(float) * 3);
-			m_VertexBuffer.m_NumElements	= (m_Mesh->position_count - 1);
-			m_VertexBuffer.Initialize();
-
-			memcpy(m_VertexBuffer.m_DataPtr, &m_Mesh->positions[3], m_VertexBuffer.m_DataSize);
-		}
-
-		// UVNBuffer
-		{
-			m_UVBuffer.m_Type				= 0x0;
-			m_UVBuffer.m_Size				= ((m_Mesh->texcoord_count - 1) * (sizeof(uint16_t) * 4));
-			m_UVBuffer.m_ElementSize		= (sizeof(uint16_t) * 4);
-			m_UVBuffer.m_NumElements		= (m_Mesh->texcoord_count - 1);
-			m_UVBuffer.Initialize();
-
-			Illusion::UVNIndex_t* m_UVNIndexArray = reinterpret_cast<Illusion::UVNIndex_t*>(m_UVBuffer.m_DataPtr);
-
-			for (uint32_t i = 1; m_Mesh->texcoord_count > i; ++i)
+			case 0x276B9567: // Skinned (WIP)
 			{
-				Illusion::UVNIndex_t* m_UVNIndex = &m_UVNIndexArray[i - 1];
-				m_UVNIndex->SetUV(&m_Mesh->texcoords[i * 2]);
+				// VertexBuffer
+				{
+					struct Skinned_t
+					{
+						float m_Vertices[4];
+						uint8_t m_Normal[4];
+						uint8_t m_Tangent[4];
+					};
 
-				if (m_Mesh->normal_count > i)
-					m_UVNIndex->SetNormals(&m_Mesh->normals[i * 3]);
-				else
-					m_UVNIndex->SetDummyNormals();
+					m_VertexBuffer.m_Type = 0x0;
+					m_VertexBuffer.InitializeSize((m_ObjMesh->position_count - 1), sizeof(Skinned_t));
+					m_VertexBuffer.Initialize();
+
+					for (uint32_t i = 1; m_VertexBuffer.m_NumElements >= i; ++i)
+					{
+						Skinned_t* m_Skinned = &reinterpret_cast<Skinned_t*>(m_VertexBuffer.m_DataPtr)[i - 1];
+				
+						// Vertices
+						{
+							memcpy(m_Skinned->m_Vertices, &m_ObjMesh->positions[i * 3], (sizeof(float) * 3));
+							m_Skinned->m_Vertices[3] = 0.f;
+						}
+
+						// Normal
+						{
+							if (m_ObjMesh->normal_count > i)
+								Helper::SetPackedFloat3(m_Skinned->m_Normal, &m_ObjMesh->normals[i * 3]);
+							else
+								m_Skinned->m_Normal[0] = m_Skinned->m_Normal[1] = m_Skinned->m_Normal[2] = 0x0;
+						}
+						m_Skinned->m_Normal[3] = 0xFF;
+
+						// Tangent (Is currently unknown, probably need to be calculated somehow...)
+						m_Skinned->m_Tangent[0] = m_Skinned->m_Tangent[1] = m_Skinned->m_Tangent[2] = 0x0;
+						m_Skinned->m_Tangent[3] = 0xFF;
+					}
+				}
+
+				// UVBuffer
+				{
+					struct UVIndex_t
+					{
+						uint16_t m_UV[2];
+					};
+
+					m_UVBuffer.m_Type = 0x0;
+					m_UVBuffer.InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVIndex_t));
+					m_UVBuffer.Initialize();
+
+					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
+					{
+						UVIndex_t* m_UVIndex = &reinterpret_cast<UVIndex_t*>(m_UVBuffer.m_DataPtr)[i - 1];
+						Helper::SetUV(m_UVIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
+					}
+				}
 			}
+			break;
+			case 0xF2700F96: // UVN
+			{
+				// VertexBuffer
+				{
+					m_VertexBuffer.m_Type = 0x0;
+					m_VertexBuffer.InitializeSize((m_ObjMesh->position_count - 1), (sizeof(float) * 3));
+					m_VertexBuffer.Initialize();
+
+					memcpy(m_VertexBuffer.m_DataPtr, &m_ObjMesh->positions[3], m_VertexBuffer.m_DataSize);
+				}
+
+				// UVBuffer
+				{
+					struct UVNIndex_t
+					{
+						uint16_t m_UV[2];
+						uint8_t m_Normal[4];
+					};
+
+					m_UVBuffer.m_Type = 0x0;
+					m_UVBuffer.InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVNIndex_t));
+					m_UVBuffer.Initialize();
+
+					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
+					{
+						UVNIndex_t* m_UVNIndex = &reinterpret_cast<UVNIndex_t*>(m_UVBuffer.m_DataPtr)[i - 1];
+						Helper::SetUV(m_UVNIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
+
+						if (m_ObjMesh->normal_count > i)
+							Helper::SetPackedFloat3(m_UVNIndex->m_Normal, &m_ObjMesh->normals[i * 3]);
+						else
+							m_UVNIndex->m_Normal[0] = m_UVNIndex->m_Normal[1] = m_UVNIndex->m_Normal[2] = 0x0;
+
+						m_UVNIndex->m_Normal[3] = 0xFF;
+					}
+				}
+			}
+			break;
 		}
 	}
 		
@@ -504,6 +430,20 @@ public:
 			return false;
 
 		return true;
+	}
+
+	void InitializeMesh(uint32_t p_VertexDeclUID)
+	{
+		// Handles
+		m_Mesh.m_VertexDeclHandle.m_NameUID			= p_VertexDeclUID;
+		m_Mesh.m_MaterialHandle.m_NameUID			= m_Material.m_NameUID;
+		m_Mesh.m_IndexBufferHandle.m_NameUID		= m_IndexBuffer.m_NameUID;
+		m_Mesh.m_VertexBufferHandles[0].m_NameUID	= m_VertexBuffer.m_NameUID;
+		m_Mesh.m_VertexBufferHandles[1].m_NameUID	= m_UVBuffer.m_NameUID;
+
+		// ...
+		m_Mesh.m_PrimType = 0x3; // Triangles
+		m_Mesh.m_NumPrims = m_ObjMesh->face_count;
 	}
 
 	void OutputFile(const char* p_FilePath)
@@ -527,14 +467,52 @@ public:
 		// ModelData
 		{
 			m_ModelData.CalculateAABB(reinterpret_cast<float*>(m_VertexBuffer.m_DataPtr), m_VertexBuffer.m_NumElements);
-
-			m_ModelData.Mesh.m_MaterialHandle.m_NameUID			= m_Material.m_NameUID;
-			m_ModelData.Mesh.m_IndexBufferHandle.m_NameUID		= m_IndexBuffer.m_NameUID;
-			m_ModelData.Mesh.m_VertexBufferHandles[0].m_NameUID = m_VertexBuffer.m_NameUID;
-			m_ModelData.Mesh.m_VertexBufferHandles[1].m_NameUID = m_UVBuffer.m_NameUID;
-			m_ModelData.SetNumPrims(m_Mesh->face_count);
-
+			m_ModelData.m_NumPrims = m_ObjMesh->face_count;
 			fwrite(&m_ModelData, sizeof(Illusion::Model_t), 1, m_File);
+		}
+
+		// Padding
+		{
+			uint8_t m_Padding[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			fwrite(m_Padding, 1, sizeof(m_Padding), m_File);
+		}
+
+		// Some Unknown Data
+		{
+			uint8_t m_Bytes[] = {
+				0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+			};
+			fwrite(m_Bytes, 1, sizeof(m_Bytes), m_File);
+		}
+
+		// MaterialUser
+		fwrite(&m_ModelUser, sizeof(Illusion::ModelUser_t), 1, m_File);
+
+		// Mesh Offset
+		{
+			struct MeshOffset_t
+			{
+				int64_t m_Value;
+				UFG_PAD(0x8);
+
+				MeshOffset_t() { }
+				MeshOffset_t(int64_t p_Value) { m_Value = p_Value; }
+			};
+			MeshOffset_t m_MeshOffset(0x10);
+			fwrite(&m_MeshOffset, sizeof(MeshOffset_t), 1, m_File);
+		}
+
+		// Mesh
+		{
+			fwrite(&m_Mesh, sizeof(Illusion::Mesh_t), 1, m_File);
+
+			uint8_t Align[] = { 
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+			};
+			fwrite(Align, 1, sizeof(Align), m_File);
 		}
 
 		fclose(m_File);
@@ -588,7 +566,7 @@ int GetArgParamInt(const char* p_Arg)
 	return atoi(&m_Param[0]);
 }
 
-bool HasArgSet(const char* p_Arg)
+bool IsArgSet(const char* p_Arg)
 {
 	for (int i = 0; g_Argc > i; ++i)
 	{
@@ -610,6 +588,7 @@ void ShowArgOptions()
 		{ "-texnormal", "Texture normal map name." },
 		{ "-texspecular", "Texture specular map name." },
 		{ "-rasterstate", "0 - None\n1 - Normal\n2 - Disable Write\n3 - Invert Disable Write\n4 - Disable Depth Test\n5 - Double Sided\n6 - Double Sided Alpha\n7 - Invert Culling" },
+		{ "-skinned", "Use skinned export. (WIP)" },
 	};
 
 	SetConColor(14); printf("Launch Options:\n");
@@ -689,13 +668,13 @@ int main(int p_Argc, char** p_Argv)
 	CModel m_Model;
 	m_Model.LoadMesh(&m_ObjectFile[0]);
 
-	if (!m_Model.m_Mesh)
+	if (!m_Model.m_ObjMesh)
 	{
 		PrintError(); printf("Failed to load object file!\n");
 		return 1;
 	}
 
-	if (1 >= m_Model.m_Mesh->texcoord_count)
+	if (1 >= m_Model.m_ObjMesh->texcoord_count)
 	{
 		PrintError(); printf("Object has no uv mapping!\n");
 		return 1;
@@ -711,15 +690,21 @@ int main(int p_Argc, char** p_Argv)
 		PrintWarning(); printf("Object file contains invalid normals mapping, size doesn't match face count!\n");
 	}
 
-	m_Model.CreateBuffers();
+	m_Model.SetName(&m_ObjectName[0]);
+	m_Model.m_ModelData.SetNumMeshes(1);
 
+	uint32_t m_VertexDeclUID = SDK::StringHash32("VertexDecl.UVN");
+	if (IsArgSet("-skinned"))
+		m_VertexDeclUID = SDK::StringHash32("VertexDecl.Skinned");
+
+	m_Model.InitializeMesh(m_VertexDeclUID);
+
+	m_Model.CreateBuffers();
 	if (!m_Model.AreBuffersValid())
 	{
 		PrintError(); printf("Failed to create buffer, make sure vertices/faces are correctly exported!\n");
 		return 1;
 	}
-
-	m_Model.SetName(&m_ObjectName[0]);
 
 	struct PrintHashTable_t
 	{
