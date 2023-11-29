@@ -10,7 +10,7 @@
 #include <Windows.h>
 
 // Defines
-#define PROJECT_VERSION		"v1.2.0"
+#define PROJECT_VERSION		"v1.3.0"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 // Material Defines
@@ -26,6 +26,7 @@
 #define MATERIAL_DEFAULT_TextureAnim				0xD0B4527C
 
 // SDK Stuff
+#define UFG_MAX(a, b) max(a, b)
 #define UFG_PAD_INSERT(x, y) x ## y
 #define UFG_PAD_DEFINE(x, y) UFG_PAD_INSERT(x, y)
 #define UFG_PAD(size) char UFG_PAD_DEFINE(padding_, __LINE__)[size] = { 0x0 }
@@ -35,6 +36,14 @@
 // Helper
 namespace Helper
 {
+	void SetResourceName(UFG::ResourceData_t* p_ResourceData, const char* p_Name, uint32_t p_NameUID, const char* p_Suffix)
+	{
+		char m_Buffer[128] = { '\0' };
+		snprintf(m_Buffer, sizeof(m_Buffer), "%s.%s", p_Name, p_Suffix);
+		p_ResourceData->m_NameUID = SDK::StringHash32(m_Buffer);
+		snprintf(p_ResourceData->m_DebugName, sizeof(UFG::ResourceData_t::m_DebugName), "0x%X_%s", p_NameUID, p_Suffix);
+	}
+
 	void SetUV(uint16_t* p_UVBytes, float* p_UV)
 	{
 		HalfFloat m_UV0 = p_UV[0];
@@ -77,6 +86,8 @@ public:
 		// ResourceData
 		m_TypeUID	= 0x7A971479;
 		m_ChunkUID	= 0x92CDEC8F;
+		m_NameUID	= 0x0;
+		memset(m_DebugName, 0, sizeof(m_DebugName));
 	}
 
 	void InitializeSize(uint32_t p_NumElements, uint32_t p_ElementSize)
@@ -114,6 +125,8 @@ public:
 		// ResourceData
 		m_TypeUID	= 0xF5F8516F;
 		m_ChunkUID	= 0xB4C26312;
+		m_NameUID	= 0x0;
+		memset(m_DebugName, 0, sizeof(m_DebugName));
 	}
 
 	void SetNumParams(uint32_t p_NumParams)
@@ -160,6 +173,8 @@ public:
 		// ResourceData
 		m_TypeUID	= 0x6DF963B3;
 		m_ChunkUID	= 0xA2ADCD77;
+		m_NameUID	= 0x0;
+		memset(m_DebugName, 0, sizeof(m_DebugName));
 
 		// Handles
 		m_MaterialTableHandle.m_NameUID = 0x0;
@@ -176,11 +191,11 @@ public:
 		SetEntrySize(sizeof(Illusion::ModelData_t) + sizeof(Illusion::ModelUser_t) + (0x110 * static_cast<int64_t>(m_NumMeshes)) + 0x38);
 	}
 
-	void CalculateAABB(float* p_VertexBuffer, uint32_t p_NumElements)
+	void CalculateAABB(uint8_t* p_VertexBuffer, uint32_t p_NumElements, uint32_t p_ElementSize)
 	{
 		for (uint32_t i = 0; p_NumElements > i; ++i)
 		{
-			float* m_Vertex = &p_VertexBuffer[i * 3];
+			float* m_Vertex = reinterpret_cast<float*>(&p_VertexBuffer[i * p_ElementSize]);
 			for (int v = 0; 3 > v; ++v)
 			{
 				if (m_Vertex[v] < m_AABBMin[v])
@@ -198,11 +213,18 @@ public:
 	fastObjMesh* m_ObjMesh = nullptr;
 	uint32_t m_NameUID = 0x0;
 
+	enum eVertexDeclType : int
+	{
+		eVertexDeclType_Unknown = -1,
+		eVertexDeclType_UVN,
+		eVertexDeclType_Skinned,
+	};
+	eVertexDeclType m_VertexDeclType = eVertexDeclType_Unknown;
+
 	// Perm.Bin
 	CMaterial m_Material;
 	CBuffer m_IndexBuffer;
-	CBuffer m_VertexBuffer;
-	CBuffer m_UVBuffer;
+	CBuffer m_VertexBuffers[4];
 	CModelData m_ModelData;
 	Illusion::ModelUser_t m_ModelUser;
 	Illusion::Mesh_t m_Mesh;
@@ -222,63 +244,48 @@ public:
 		if (m_IndexBuffer.m_DataPtr)
 			free(m_IndexBuffer.m_DataPtr);
 
-		if (m_VertexBuffer.m_DataPtr)
-			free(m_VertexBuffer.m_DataPtr);
-
-		if (m_UVBuffer.m_DataPtr)
-			free(m_UVBuffer.m_DataPtr);
+		for (auto& m_VertexBuffer : m_VertexBuffers)
+		{
+			if (m_VertexBuffer.m_DataPtr)
+			{
+				free(m_VertexBuffer.m_DataPtr);
+				m_VertexBuffer.m_DataPtr = nullptr;
+			}
+		}
 	}
 
 	void SetName(const char* p_Name)
 	{
 		m_NameUID = SDK::StringHash32(p_Name);
 
-		char m_Buffer[128];
-
 		// Material
-		{
-			snprintf(m_Buffer, sizeof(m_Buffer), "%s.Material", p_Name);
-			m_Material.m_NameUID = SDK::StringHash32(m_Buffer);
-
-			memset(m_Material.m_DebugName, 0, sizeof(Illusion::Buffer_t::m_DebugName));
-			snprintf(m_Material.m_DebugName, sizeof(Illusion::Buffer_t::m_DebugName), "0x%X_Material", m_NameUID);
-		}
+		Helper::SetResourceName(&m_Material, p_Name, m_NameUID, "Material");
 
 		// IndexBuffer
+		Helper::SetResourceName(&m_IndexBuffer, p_Name, m_NameUID, "IndexBuffer");
+
+		// VertexBuffers
 		{
-			snprintf(m_Buffer, sizeof(m_Buffer), "%s.IndexBuffer", p_Name);
-			m_IndexBuffer.m_NameUID = SDK::StringHash32(m_Buffer);
-
-			memset(m_IndexBuffer.m_DebugName, 0, sizeof(Illusion::Buffer_t::m_DebugName));
-			snprintf(m_IndexBuffer.m_DebugName, sizeof(Illusion::Buffer_t::m_DebugName), "0x%X_IndexBuffer", m_NameUID);
-		}
-
-		// VertexBuffer
-		{
-			snprintf(m_Buffer, sizeof(m_Buffer), "%s.VertexBuffer", p_Name);
-			m_VertexBuffer.m_NameUID = SDK::StringHash32(m_Buffer);
-
-			memset(m_VertexBuffer.m_DebugName, 0, sizeof(Illusion::Buffer_t::m_DebugName));
-			snprintf(m_VertexBuffer.m_DebugName, sizeof(Illusion::Buffer_t::m_DebugName), "0x%X_VertexBuffer", m_NameUID);
-		}
-
-		// VertexBuffer
-		{
-			snprintf(m_Buffer, sizeof(m_Buffer), "%s.UVBuffer", p_Name);
-			m_UVBuffer.m_NameUID = SDK::StringHash32(m_Buffer);
-
-			memset(m_UVBuffer.m_DebugName, 0, sizeof(Illusion::Buffer_t::m_DebugName));
-			snprintf(m_UVBuffer.m_DebugName, sizeof(Illusion::Buffer_t::m_DebugName), "0x%X_UVBuffer", m_NameUID);
+			switch (m_VertexDeclType)
+			{
+				case eVertexDeclType_UVN:
+				{
+					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, m_NameUID, "VertexBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, m_NameUID, "UVNBuffer");
+				}
+				break;
+				case eVertexDeclType_Skinned:
+				{
+					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, m_NameUID, "VertexBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, m_NameUID, "BlendBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[2], p_Name, m_NameUID, "UVBuffer");
+				}
+				break;
+			}
 		}
 
 		// ModelData
-		{
-			snprintf(m_Buffer, sizeof(m_Buffer), "%s.ModelData", p_Name);
-			m_ModelData.m_NameUID = SDK::StringHash32(m_Buffer);
-
-			memset(m_ModelData.m_DebugName, 0, sizeof(Illusion::Buffer_t::m_DebugName));
-			snprintf(m_ModelData.m_DebugName, sizeof(Illusion::Buffer_t::m_DebugName), "0x%X_ModelData", m_NameUID);
-		}
+		Helper::SetResourceName(&m_ModelData, p_Name, m_NameUID, "ModelData");
 	}
 	
 	void LoadMesh(const char* p_FilePath)
@@ -322,9 +329,47 @@ public:
 			}
 		}
 
-		switch (m_Mesh.m_VertexDeclHandle.m_NameUID)
+		switch (m_VertexDeclType)
 		{
-			case 0x276B9567: // Skinned (WIP)
+			case eVertexDeclType_UVN:
+			{
+				// VertexBuffer
+				{
+					m_VertexBuffers[0].m_Type = 0x0;
+					m_VertexBuffers[0].InitializeSize((m_ObjMesh->position_count - 1), (sizeof(float) * 3));
+					m_VertexBuffers[0].Initialize();
+
+					memcpy(m_VertexBuffers[0].m_DataPtr, &m_ObjMesh->positions[3], m_VertexBuffers[0].m_DataSize);
+				}
+
+				// UVNBuffer
+				{
+					struct UVNIndex_t
+					{
+						uint16_t m_UV[2];
+						uint8_t m_Normal[4];
+					};
+
+					m_VertexBuffers[1].m_Type = 0x0;
+					m_VertexBuffers[1].InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVNIndex_t));
+					m_VertexBuffers[1].Initialize();
+
+					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
+					{
+						UVNIndex_t* m_UVNIndex = &reinterpret_cast<UVNIndex_t*>(m_VertexBuffers[1].m_DataPtr)[i - 1];
+						Helper::SetUV(m_UVNIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
+
+						if (m_ObjMesh->normal_count > i)
+							Helper::SetPackedFloat3(m_UVNIndex->m_Normal, &m_ObjMesh->normals[i * 3]);
+						else
+							m_UVNIndex->m_Normal[0] = m_UVNIndex->m_Normal[1] = m_UVNIndex->m_Normal[2] = 0x0;
+
+						m_UVNIndex->m_Normal[3] = 0xFF;
+					}
+				}
+			}
+			break;
+			case eVertexDeclType_Skinned:
 			{
 				// VertexBuffer
 				{
@@ -335,13 +380,13 @@ public:
 						uint8_t m_Tangent[4];
 					};
 
-					m_VertexBuffer.m_Type = 0x0;
-					m_VertexBuffer.InitializeSize((m_ObjMesh->position_count - 1), sizeof(Skinned_t));
-					m_VertexBuffer.Initialize();
+					m_VertexBuffers[0].m_Type = 0x0;
+					m_VertexBuffers[0].InitializeSize((m_ObjMesh->position_count - 1), sizeof(Skinned_t));
+					m_VertexBuffers[0].Initialize();
 
-					for (uint32_t i = 1; m_VertexBuffer.m_NumElements >= i; ++i)
+					for (uint32_t i = 1; m_VertexBuffers[0].m_NumElements >= i; ++i)
 					{
-						Skinned_t* m_Skinned = &reinterpret_cast<Skinned_t*>(m_VertexBuffer.m_DataPtr)[i - 1];
+						Skinned_t* m_Skinned = &reinterpret_cast<Skinned_t*>(m_VertexBuffers[0].m_DataPtr)[i - 1];
 				
 						// Vertices
 						{
@@ -364,6 +409,30 @@ public:
 					}
 				}
 
+				// BlendBuffer
+				{
+					struct Blend_t
+					{
+						uint8_t m_Index[4];
+						uint8_t m_Weight[4];
+					};
+
+					m_VertexBuffers[1].m_Type = 0x0;
+					m_VertexBuffers[1].InitializeSize((m_ObjMesh->position_count - 1), sizeof(Blend_t));
+					m_VertexBuffers[1].Initialize();
+
+					for (uint32_t i = 0; m_VertexBuffers[1].m_NumElements > i; ++i)
+					{
+						Blend_t* m_Blend = &reinterpret_cast<Blend_t*>(m_VertexBuffers[1].m_DataPtr)[i];
+						
+						// We just fill this up with static blend data since we can't do bone/blending stuff in OBJ
+						m_Blend->m_Index[0] = m_Blend->m_Index[1] = m_Blend->m_Index[2] = m_Blend->m_Index[3] = 0x0;
+
+						m_Blend->m_Weight[0] = 0xFF;
+						m_Blend->m_Weight[1] = m_Blend->m_Weight[2] = m_Blend->m_Weight[3] = 0x0;
+					}
+				}
+
 				// UVBuffer
 				{
 					struct UVIndex_t
@@ -371,52 +440,14 @@ public:
 						uint16_t m_UV[2];
 					};
 
-					m_UVBuffer.m_Type = 0x0;
-					m_UVBuffer.InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVIndex_t));
-					m_UVBuffer.Initialize();
+					m_VertexBuffers[2].m_Type = 0x0;
+					m_VertexBuffers[2].InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVIndex_t));
+					m_VertexBuffers[2].Initialize();
 
 					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
 					{
-						UVIndex_t* m_UVIndex = &reinterpret_cast<UVIndex_t*>(m_UVBuffer.m_DataPtr)[i - 1];
+						UVIndex_t* m_UVIndex = &reinterpret_cast<UVIndex_t*>(m_VertexBuffers[2].m_DataPtr)[i - 1];
 						Helper::SetUV(m_UVIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
-					}
-				}
-			}
-			break;
-			case 0xF2700F96: // UVN
-			{
-				// VertexBuffer
-				{
-					m_VertexBuffer.m_Type = 0x0;
-					m_VertexBuffer.InitializeSize((m_ObjMesh->position_count - 1), (sizeof(float) * 3));
-					m_VertexBuffer.Initialize();
-
-					memcpy(m_VertexBuffer.m_DataPtr, &m_ObjMesh->positions[3], m_VertexBuffer.m_DataSize);
-				}
-
-				// UVBuffer
-				{
-					struct UVNIndex_t
-					{
-						uint16_t m_UV[2];
-						uint8_t m_Normal[4];
-					};
-
-					m_UVBuffer.m_Type = 0x0;
-					m_UVBuffer.InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVNIndex_t));
-					m_UVBuffer.Initialize();
-
-					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
-					{
-						UVNIndex_t* m_UVNIndex = &reinterpret_cast<UVNIndex_t*>(m_UVBuffer.m_DataPtr)[i - 1];
-						Helper::SetUV(m_UVNIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
-
-						if (m_ObjMesh->normal_count > i)
-							Helper::SetPackedFloat3(m_UVNIndex->m_Normal, &m_ObjMesh->normals[i * 3]);
-						else
-							m_UVNIndex->m_Normal[0] = m_UVNIndex->m_Normal[1] = m_UVNIndex->m_Normal[2] = 0x0;
-
-						m_UVNIndex->m_Normal[3] = 0xFF;
 					}
 				}
 			}
@@ -426,20 +457,34 @@ public:
 		
 	bool AreBuffersValid()
 	{
-		if (m_IndexBuffer.m_NumElements == 0 || m_VertexBuffer.m_NumElements == 0)
+		if (m_IndexBuffer.m_NumElements == 0)
+			return false;
+
+		if (m_VertexBuffers[0].m_NumElements == 0 && m_VertexBuffers[1].m_NumElements == 0 && m_VertexBuffers[2].m_NumElements == 0 && m_VertexBuffers[3].m_NumElements == 0)
 			return false;
 
 		return true;
 	}
 
-	void InitializeMesh(uint32_t p_VertexDeclUID)
+	void InitializeMesh()
 	{
+		// VertexDecl
+		switch (m_VertexDeclType)
+		{
+			case eVertexDeclType_Unknown:
+				m_Mesh.m_VertexDeclHandle.m_NameUID = UINT32_MAX; break;
+			case eVertexDeclType_UVN:
+				m_Mesh.m_VertexDeclHandle.m_NameUID = SDK::StringHash32("VertexDecl.UVN"); break;
+			case eVertexDeclType_Skinned:
+				m_Mesh.m_VertexDeclHandle.m_NameUID = SDK::StringHash32("VertexDecl.Skinned"); break;
+		}
+
 		// Handles
-		m_Mesh.m_VertexDeclHandle.m_NameUID			= p_VertexDeclUID;
 		m_Mesh.m_MaterialHandle.m_NameUID			= m_Material.m_NameUID;
 		m_Mesh.m_IndexBufferHandle.m_NameUID		= m_IndexBuffer.m_NameUID;
-		m_Mesh.m_VertexBufferHandles[0].m_NameUID	= m_VertexBuffer.m_NameUID;
-		m_Mesh.m_VertexBufferHandles[1].m_NameUID	= m_UVBuffer.m_NameUID;
+
+		for (int i = 0; 4 > i; ++i)
+			m_Mesh.m_VertexBufferHandles[i].m_NameUID = m_VertexBuffers[i].m_NameUID;
 
 		// ...
 		m_Mesh.m_PrimType = 0x3; // Triangles
@@ -458,15 +503,18 @@ public:
 		// IndexBuffer
 		m_IndexBuffer.WriteToFile(m_File);
 
-		// VertexBuffer
-		m_VertexBuffer.WriteToFile(m_File);
+		// VertexBuffers
+		for (auto& m_VertexBuffer : m_VertexBuffers)
+		{
+			if (!m_VertexBuffer.m_DataPtr)
+				continue;
 
-		// UVBuffer
-		m_UVBuffer.WriteToFile(m_File);
+			m_VertexBuffer.WriteToFile(m_File);
+		}
 
 		// ModelData
 		{
-			m_ModelData.CalculateAABB(reinterpret_cast<float*>(m_VertexBuffer.m_DataPtr), m_VertexBuffer.m_NumElements);
+			m_ModelData.CalculateAABB(reinterpret_cast<uint8_t*>(m_VertexBuffers[0].m_DataPtr), m_VertexBuffers[0].m_NumElements, m_VertexBuffers[0].m_ElementSize);
 			m_ModelData.m_NumPrims = m_ObjMesh->face_count;
 			fwrite(&m_ModelData, sizeof(Illusion::Model_t), 1, m_File);
 		}
@@ -690,15 +738,17 @@ int main(int p_Argc, char** p_Argv)
 		PrintWarning(); printf("Object file contains invalid normals mapping, size doesn't match face count!\n");
 	}
 
+	// Vertex Decl Type
+	{
+		m_Model.m_VertexDeclType = CModel::eVertexDeclType_UVN;
+		if (IsArgSet("-skinned"))
+			m_Model.m_VertexDeclType = CModel::eVertexDeclType_Skinned;
+	}
+
 	m_Model.SetName(&m_ObjectName[0]);
 	m_Model.m_ModelData.SetNumMeshes(1);
 
-	uint32_t m_VertexDeclUID = SDK::StringHash32("VertexDecl.UVN");
-	if (IsArgSet("-skinned"))
-		m_VertexDeclUID = SDK::StringHash32("VertexDecl.Skinned");
-
-	m_Model.InitializeMesh(m_VertexDeclUID);
-
+	m_Model.InitializeMesh();
 	m_Model.CreateBuffers();
 	if (!m_Model.AreBuffersValid())
 	{
@@ -778,8 +828,24 @@ int main(int p_Argc, char** p_Argv)
 	{
 		m_PermHashesTable.Add("Material", m_Model.m_Material.m_NameUID);
 		m_PermHashesTable.Add("IndexBuffer", m_Model.m_IndexBuffer.m_NameUID);
-		m_PermHashesTable.Add("VertexBuffer", m_Model.m_VertexBuffer.m_NameUID);
-		m_PermHashesTable.Add("UVBuffer", m_Model.m_UVBuffer.m_NameUID);
+
+		for (int i = 0; 4 > i; ++i)
+		{
+			if (!m_Model.m_VertexBuffers[i].m_DataPtr)
+				continue;
+
+			const char* m_Name = nullptr;
+			switch (i)
+			{
+				case 0: m_Name = "VertexBuffer[0]"; break;
+				case 1: m_Name = "VertexBuffer[1]"; break;
+				case 2: m_Name = "VertexBuffer[2]"; break;
+				case 3: m_Name = "VertexBuffer[3]"; break;
+			}
+
+			m_PermHashesTable.Add(m_Name, m_Model.m_VertexBuffers[i].m_NameUID);
+		}
+
 		m_PermHashesTable.Add("ModelData", m_Model.m_ModelData.m_NameUID);
 	}
 	m_PrintTables.emplace_back(m_PermHashesTable);
