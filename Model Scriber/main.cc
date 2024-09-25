@@ -17,7 +17,7 @@
 //=============================================================
 // Defines
 
-#define PROJECT_VERSION		"v1.3.1"
+#define PROJECT_VERSION		"v1.3.2"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 //=============================================================
@@ -531,9 +531,9 @@ public:
 		m_Mesh.m_NumPrims = m_ObjMesh->face_count;
 	}
 
-	void OutputFile(const char* p_FilePath)
+	void OutputFile(const char* p_FilePath, const char* p_Mode)
 	{
-		FILE* pFile = fopen(p_FilePath, "wb");
+		FILE* pFile = fopen(p_FilePath, p_Mode);
 		if (!pFile) {
 			return;
 		}
@@ -623,6 +623,7 @@ void ShowArgOptions()
 		{ "-texspecular", "Texture specular map name." },
 		{ "-rasterstate", "0 - None\n1 - Normal\n2 - Disable Write\n3 - Invert Disable Write\n4 - Disable Depth Test\n5 - Double Sided\n6 - Double Sided Alpha\n7 - Invert Culling" },
 		{ "-skinned", "Use skinned export. (WIP)" },
+		{ "-append", "Appends model to pre-existing perm.bin file." },
 	};
 
 	Con::Print(14, "Launch Options:\n");
@@ -660,6 +661,7 @@ int main(int p_Argc, char** p_Argv)
 	std::string sTextureSpecular	= Con::GetArgParam("-texspecular");
 	int iRasterState				= Con::GetArgParamInt("-rasterstate");
 	bool bSkinned					= Con::IsArgSet("-skinned");
+	bool bAppend					= Con::IsArgSet("-append");
 
 	if (Con::IsArgSet("-debug")) 
 	{
@@ -884,9 +886,11 @@ int main(int p_Argc, char** p_Argv)
 		std::string sPermBinFileName = sOutputFileNameNoExt + ".perm.bin";
 		std::string sTempBinFileName = sOutputFileNameNoExt + ".temp.bin";
 		{
-			modelScribe.OutputFile(&sPermBinFileName[0]);
+			const char* pFileMode = (bAppend ? "ab" : "wb");
 
-			FILE* pTempFile = fopen(&sTempBinFileName[0], "wb");
+			modelScribe.OutputFile(&sPermBinFileName[0], pFileMode);
+
+			FILE* pTempFile = fopen(&sTempBinFileName[0], pFileMode);
 			if (pTempFile) {
 				fclose(pTempFile);
 			}
