@@ -24,5 +24,8 @@
     <ClInclude Include="3rdParty\umHalf.h">
       <Filter>Project Files\3rdParty</Filter>
     </ClInclude>
+    <ClInclude Include="Console.hh">
+      <Filter>Project Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -11,12 +11,13 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 //=============================================================
 // Defines
 
-#define PROJECT_VERSION		"v1.3.0"
+#define PROJECT_VERSION		"v1.3.1"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 //=============================================================
@@ -88,11 +89,13 @@ namespace Helper
 	}
 }
 
+//=============================================================
 // Classes
+
 class Buffer : public Illusion::Buffer_t
 {
 public:
-	void* m_DataPtr = nullptr;
+	void* m_pData = nullptr;
 	uint32_t m_DataSize = 0;
 
 	Buffer()
@@ -102,9 +105,18 @@ public:
 		m_ChunkUID	= 0x92CDEC8F;
 		m_NameUID	= 0x0;
 		memset(m_DebugName, 0, sizeof(m_DebugName));
+
+		m_Type		= UINT32_MAX;
 	}
 
-	void InitializeSize(uint32_t p_NumElements, uint32_t p_ElementSize)
+	~Buffer()
+	{
+		if (m_pData) {
+			free(m_pData);
+		}
+	}
+
+	void SetElements(uint32_t p_NumElements, uint32_t p_ElementSize)
 	{
 		m_NumElements	= p_NumElements;
 		m_ElementSize	= p_ElementSize;
@@ -114,8 +126,8 @@ public:
 	void Initialize()
 	{
 		m_DataSize = GetBytesToReserve();
-		m_DataPtr = malloc(m_DataSize);
-		memset(m_DataPtr, 0, m_DataSize);
+		m_pData = malloc(static_cast<size_t>(m_DataSize));
+		memset(m_pData, 0, static_cast<size_t>(m_DataSize));
 
 		// ResourceData
 		SetEntrySize(sizeof(Illusion::Buffer_t) + m_DataSize);
@@ -124,7 +136,7 @@ public:
 	void WriteToFile(FILE* p_File)
 	{
 		fwrite(this, sizeof(Illusion::Buffer_t), 1, p_File);
-		fwrite(m_DataPtr, sizeof(uint8_t), m_DataSize, p_File);
+		fwrite(m_pData, sizeof(uint8_t), static_cast<size_t>(m_DataSize), p_File);
 	}
 };
 
@@ -202,7 +214,7 @@ public:
 
 	void SetNumMeshes(uint32_t p_NumMeshes)
 	{
-		m_NumMeshes = 1;
+		m_NumMeshes = p_NumMeshes;
 		SetEntrySize(sizeof(Illusion::ModelData_t) + sizeof(Illusion::ModelUser_t) + (0x110 * static_cast<int64_t>(m_NumMeshes)) + 0x38);
 	}
 
@@ -258,19 +270,6 @@ public:
 		if (m_ObjMesh) {
 			fast_obj_destroy(m_ObjMesh);
 		}
-
-		if (m_IndexBuffer.m_DataPtr) {
-			free(m_IndexBuffer.m_DataPtr);
-		}
-
-		for (auto& vertexBuffer : m_VertexBuffers)
-		{
-			if (vertexBuffer.m_DataPtr)
-			{
-				free(vertexBuffer.m_DataPtr);
-				vertexBuffer.m_DataPtr = nullptr;
-			}
-		}
 	}
 
 	void SetName(const char* p_Name)
@@ -316,8 +315,8 @@ public:
 	{
 		for (uint32_t i = 0; m_ObjMesh->index_count > i; ++i)
 		{
-			fastObjIndex* m_Index = &m_ObjMesh->indices[i];
-			if (m_Index->p != m_Index->t) { // Check if texture index isnt different to face index, otherwise we fucked...
+			auto pIndex = &m_ObjMesh->indices[i];
+			if (pIndex->p != pIndex->t) { // Check if texture index isnt different to face index, otherwise we fucked...
 				return false;
 			}
 		}
@@ -330,22 +329,24 @@ public:
 		return (m_ObjMesh->normal_count == m_ObjMesh->texcoord_count);
 	}
 
+	bool IsFaceCountValid()
+	{
+		return ((m_ObjMesh->face_count * 3) == m_ObjMesh->index_count);
+	}
+
 	void CreateBuffers()	
 	{
 		// IndexBuffer
 		{
-			m_IndexBuffer.m_Type			= 0x1;
+			m_IndexBuffer.m_Type			= 1;
 			m_IndexBuffer.m_Size			= (m_ObjMesh->face_count * (sizeof(uint16_t) * 3));
 			m_IndexBuffer.m_ElementSize		= sizeof(uint16_t);
 			m_IndexBuffer.m_NumElements		= (m_ObjMesh->face_count * sizeof(uint16_t));
 			m_IndexBuffer.Initialize();
 
-			uint16_t* pIndexBuffer = reinterpret_cast<uint16_t*>(m_IndexBuffer.m_DataPtr);
-
-			for (uint32_t i = 0; m_ObjMesh->index_count > i; ++i)
-			{
-				fastObjIndex* pIndex = &m_ObjMesh->indices[i];
-				pIndexBuffer[i] = (pIndex->p - 1);
+			uint16_t* pIndexBuffer = reinterpret_cast<uint16_t*>(m_IndexBuffer.m_pData);
+			for (uint32_t i = 0; m_ObjMesh->index_count > i; ++i) {
+				pIndexBuffer[i] = (m_ObjMesh->indices[i].p - 1);
 			}
 		}
 
@@ -355,11 +356,12 @@ public:
 			{
 				// VertexBuffer
 				{
-					m_VertexBuffers[0].m_Type = 0x0;
-					m_VertexBuffers[0].InitializeSize((m_ObjMesh->position_count - 1), (sizeof(float) * 3));
-					m_VertexBuffers[0].Initialize();
+					auto pVertexBuffer = &m_VertexBuffers[0];
+					pVertexBuffer->m_Type = 0;
+					pVertexBuffer->SetElements(m_ObjMesh->position_count - 1, (sizeof(float) * 3));
+					pVertexBuffer->Initialize();
 
-					memcpy(m_VertexBuffers[0].m_DataPtr, &m_ObjMesh->positions[3], m_VertexBuffers[0].m_DataSize);
+					memcpy(pVertexBuffer->m_pData, &m_ObjMesh->positions[3], static_cast<size_t>(pVertexBuffer->m_DataSize));
 				}
 
 				// UVNBuffer
@@ -370,13 +372,14 @@ public:
 						uint8_t m_Normal[4];
 					};
 
-					m_VertexBuffers[1].m_Type = 0x0;
-					m_VertexBuffers[1].InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVNIndex_t));
-					m_VertexBuffers[1].Initialize();
+					auto pUVNBuffer = &m_VertexBuffers[1];
+					pUVNBuffer->m_Type = 0;
+					pUVNBuffer->SetElements(m_ObjMesh->texcoord_count - 1, sizeof(UVNIndex_t));
+					pUVNBuffer->Initialize();
 
-					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
+					for (uint32_t i = 1; pUVNBuffer->m_NumElements >= i; ++i)
 					{
-						UVNIndex_t* pUVNIndex = &reinterpret_cast<UVNIndex_t*>(m_VertexBuffers[1].m_DataPtr)[i - 1];
+						auto pUVNIndex = &reinterpret_cast<UVNIndex_t*>(pUVNBuffer->m_pData)[i - 1];
 						Helper::SetUV(pUVNIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
 
 						if (m_ObjMesh->normal_count > i) {
@@ -402,13 +405,14 @@ public:
 						uint8_t m_Tangent[4];
 					};
 
-					m_VertexBuffers[0].m_Type = 0x0;
-					m_VertexBuffers[0].InitializeSize((m_ObjMesh->position_count - 1), sizeof(Skinned_t));
-					m_VertexBuffers[0].Initialize();
+					auto pVertexBuffer = &m_VertexBuffers[0];
+					pVertexBuffer->m_Type = 0;
+					pVertexBuffer->SetElements(m_ObjMesh->position_count - 1, sizeof(Skinned_t));
+					pVertexBuffer->Initialize();
 
-					for (uint32_t i = 1; m_VertexBuffers[0].m_NumElements >= i; ++i)
+					for (uint32_t i = 1; pVertexBuffer->m_NumElements >= i; ++i)
 					{
-						Skinned_t* pSkinned = &reinterpret_cast<Skinned_t*>(m_VertexBuffers[0].m_DataPtr)[i - 1];
+						auto pSkinned = &reinterpret_cast<Skinned_t*>(pVertexBuffer->m_pData)[i - 1];
 				
 						// Vertices
 						{
@@ -441,13 +445,14 @@ public:
 						uint8_t m_Weight[4];
 					};
 
-					m_VertexBuffers[1].m_Type = 0x0;
-					m_VertexBuffers[1].InitializeSize((m_ObjMesh->position_count - 1), sizeof(Blend_t));
-					m_VertexBuffers[1].Initialize();
+					auto pBlendBuffer = &m_VertexBuffers[1];
+					pBlendBuffer->m_Type = 0;
+					pBlendBuffer->SetElements(m_ObjMesh->position_count - 1, sizeof(Blend_t));
+					pBlendBuffer->Initialize();
 
-					for (uint32_t i = 0; m_VertexBuffers[1].m_NumElements > i; ++i)
+					for (uint32_t i = 0; pBlendBuffer->m_NumElements > i; ++i)
 					{
-						Blend_t* pBlend = &reinterpret_cast<Blend_t*>(m_VertexBuffers[1].m_DataPtr)[i];
+						auto pBlend = &reinterpret_cast<Blend_t*>(pBlendBuffer->m_pData)[i];
 						
 						// We just fill this up with static blend data since we can't do bone/blending stuff in OBJ
 						memset(pBlend->m_Index, 0, 4);
@@ -464,13 +469,14 @@ public:
 						uint16_t m_UV[2];
 					};
 
-					m_VertexBuffers[2].m_Type = 0x0;
-					m_VertexBuffers[2].InitializeSize((m_ObjMesh->texcoord_count - 1), sizeof(UVIndex_t));
-					m_VertexBuffers[2].Initialize();
+					auto pUVBuffer = &m_VertexBuffers[2];
+					pUVBuffer->m_Type = 0;
+					pUVBuffer->SetElements(m_ObjMesh->texcoord_count - 1, sizeof(UVIndex_t));
+					pUVBuffer->Initialize();
 
-					for (uint32_t i = 1; m_ObjMesh->texcoord_count > i; ++i)
+					for (uint32_t i = 1; pUVBuffer->m_NumElements >= i; ++i)
 					{
-						UVIndex_t* pUVIndex = &reinterpret_cast<UVIndex_t*>(m_VertexBuffers[2].m_DataPtr)[i - 1];
+						auto pUVIndex = &reinterpret_cast<UVIndex_t*>(pUVBuffer->m_pData)[i - 1];
 						Helper::SetUV(pUVIndex->m_UV, &m_ObjMesh->texcoords[i * 2]);
 					}
 				}
@@ -487,7 +493,11 @@ public:
 
 		for (auto& vertexBuffer : m_VertexBuffers)
 		{
-			if (vertexBuffer.m_NumElements == 0) {
+			if (vertexBuffer.m_Type == UINT32_MAX) {
+				continue;
+			}
+
+			if (!vertexBuffer.m_pData || vertexBuffer.m_NumElements == 0) {
 				return false;
 			}
 		}
@@ -537,7 +547,7 @@ public:
 		// VertexBuffers
 		for (auto& vertexBuffer : m_VertexBuffers)
 		{
-			if (!vertexBuffer.m_DataPtr) {
+			if (!vertexBuffer.m_pData) {
 				continue;
 			}
 
@@ -546,7 +556,7 @@ public:
 
 		// ModelData
 		{
-			m_ModelData.CalculateAABB(reinterpret_cast<uint8_t*>(m_VertexBuffers[0].m_DataPtr), m_VertexBuffers[0].m_NumElements, m_VertexBuffers[0].m_ElementSize);
+			m_ModelData.CalculateAABB(reinterpret_cast<uint8_t*>(m_VertexBuffers[0].m_pData), m_VertexBuffers[0].m_NumElements, m_VertexBuffers[0].m_ElementSize);
 			m_ModelData.m_NumPrims = m_ObjMesh->face_count;
 			fwrite(&m_ModelData, sizeof(Illusion::Model_t), 1, pFile);
 		}
@@ -599,75 +609,15 @@ public:
 	}
 };
 
-HANDLE g_ConsoleOutput = 0;
-CONSOLE_SCREEN_BUFFER_INFO g_ConsoleBufferInfo;
-void InitConsole()
-{
-	g_ConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-	GetConsoleScreenBufferInfo(g_ConsoleOutput, &g_ConsoleBufferInfo);
-	SetConsoleTitleA(PROJECT_NAME);
-}
-void SetConColor(WORD p_Attribute) { SetConsoleTextAttribute(g_ConsoleOutput, p_Attribute); }
-void ResetConColor() { SetConColor(g_ConsoleBufferInfo.wAttributes); }
-void PrintError() { SetConColor(12); printf("[ ERROR ] "); ResetConColor(); }
-void PrintWarning() { SetConColor(14); printf("[ WARNING ] "); ResetConColor(); }
-
-int g_Argc = 0;
-char** g_Argv = nullptr;
-void InitArgParam(int p_Argc, char** p_Argv)
-{
-	g_Argc = p_Argc;
-	g_Argv = p_Argv;
-}
-
-std::string GetArgParam(const char* p_Arg)
-{
-	for (int i = 0; g_Argc > i; ++i)
-	{
-		if (_stricmp(p_Arg, g_Argv[i]) != 0) {
-			continue;
-		}
-
-		int iParamIndex = (i + 1);
-		if (iParamIndex >= g_Argc) {
-			break;
-		}
-
-		return g_Argv[iParamIndex];
-	}
-
-	return "";
-}
-
-int GetArgParamInt(const char* p_Arg)
-{
-	std::string sParam = GetArgParam(p_Arg);
-	if (sParam.empty()) {
-		return 0;
-	}
-
-	return atoi(&sParam[0]);
-}
-
-bool IsArgSet(const char* p_Arg)
-{
-	for (int i = 0; g_Argc > i; ++i)
-	{
-		if (_stricmp(p_Arg, g_Argv[i]) == 0) {
-			return true;
-		}
-	}
-
-	return false;
-}
+#include "Console.hh"
 
 void ShowArgOptions()
 {
 	std::pair<const char*, const char*> arrArgs[] =
 	{
-		{ "-obj", "Object file to scribe." },
+		{ "-obj", "Obj file to scribe." },
 		{ "-dir", "Output directory, if not set it uses object folder." },
-		{ "-name", "Object internal name (optional)." },
+		{ "-name", "Obj internal name (optional)." },
 		{ "-texdiffuse", "Texture diffuse name." },
 		{ "-texnormal", "Texture normal map name." },
 		{ "-texspecular", "Texture specular map name." },
@@ -675,61 +625,66 @@ void ShowArgOptions()
 		{ "-skinned", "Use skinned export. (WIP)" },
 	};
 
-	SetConColor(14); printf("Launch Options:\n");
+	Con::Print(14, "Launch Options:\n");
 	for (auto& argPair : arrArgs)
 	{
-		SetConColor(13); printf("\t%s", argPair.first);
-		SetConColor(11); 
+		Con::Print(13, "\t%s", argPair.first);
+		Con::SetColor(11); 
 		
-		std::string s_Description = argPair.second;
-		size_t sDescNewline = s_Description.find('\n');
+		std::string sDescription = argPair.second;
+		size_t sDescNewline = sDescription.find('\n');
 		while (sDescNewline != std::string::npos)
 		{
 			++sDescNewline;
-			s_Description.insert(sDescNewline, "\t\t\t");
-			sDescNewline = s_Description.find('\n', sDescNewline);
+			sDescription.insert(sDescNewline, "\t\t\t");
+			sDescNewline = sDescription.find('\n', sDescNewline);
 		}
 
-		printf("\t%s\n", &s_Description[0]);
+		printf("\t%s\n", &sDescription[0]);
 	}
 }
 
 int main(int p_Argc, char** p_Argv)
 {
-#ifdef _DEBUG
-	int m_DebugKey = getchar();
-#endif
+	Con::Initialize(PROJECT_NAME, p_Argc, p_Argv);
+	Con::Print(240, PROJECT_NAME "\n");
 
-	InitConsole();
-	InitArgParam(p_Argc, p_Argv);
-	atexit(ResetConColor);
+	//--------------------------------------------------------------------------
+	// Arguments
 
-	SetConColor(240);
-	printf(PROJECT_NAME "\n");
-	ResetConColor();
+	std::string sObjectFile			= Con::GetArgParam("-obj");
+	std::string sOutputDirectory	= Con::GetArgParam("-dir");
+	std::string sObjectName			= Con::GetArgParam("-name");
+	std::string sTextureDiffuse		= Con::GetArgParam("-texdiffuse");
+	std::string sTextureNormal		= Con::GetArgParam("-texnormal");
+	std::string sTextureSpecular	= Con::GetArgParam("-texspecular");
+	int iRasterState				= Con::GetArgParamInt("-rasterstate");
+	bool bSkinned					= Con::IsArgSet("-skinned");
 
-	std::string sObjectFile			= GetArgParam("-obj");
-	std::string sOutputDirectory	= GetArgParam("-dir");
-	std::string sObjectName			= GetArgParam("-name");
-	std::string sTextureDiffuse		= GetArgParam("-texdiffuse");
-	std::string sTextureNormal		= GetArgParam("-texnormal");
-	std::string sTextureSpecular	= GetArgParam("-texspecular");
-	int iRasterState				= GetArgParamInt("-rasterstate");
+	if (Con::IsArgSet("-debug")) 
+	{
+		Con::Print(240, "Waiting for debugger...\n");
+		while (!IsDebuggerPresent()) {
+			Sleep(1);
+		}
+	}
+
+	//--------------------------------------------------------------------------
 
 	if (sObjectFile.empty())
 	{
-		PrintError(); printf("No object file set!\n");
+		Con::PrintError("No obj file found!\n");
 		ShowArgOptions();
 		return 1;
 	}
 
 	if (sObjectFile.find(".obj") == std::string::npos)
 	{
-		PrintError(); printf("Object file must have extension .obj!\n");
+		Con::PrintError("Obj file must have extension .obj!\n");
 		return 1;
 	}
 
-	SetConColor(224); printf("Object File: %s\n", &sObjectFile[0]); ResetConColor(); printf("\n");
+	Con::Print(224, "Obj File: %s\n\n", &sObjectFile[0]);
 
 	if (sObjectName.empty())
 	{
@@ -747,7 +702,7 @@ int main(int p_Argc, char** p_Argv)
 
 	if (sTextureDiffuse.empty())
 	{
-		PrintWarning(); printf("No texture diffuse name specified using default!\n");
+		Con::PrintWarning("No texture diffuse name specified using default!\n");
 		sTextureDiffuse = "DEFAULT";
 	}
 
@@ -756,30 +711,34 @@ int main(int p_Argc, char** p_Argv)
 
 	if (!modelScribe.m_ObjMesh)
 	{
-		PrintError(); printf("Failed to load object file!\n");
+		Con::PrintError("Failed to load obj file!\n");
 		return 1;
 	}
 
 	if (1 >= modelScribe.m_ObjMesh->texcoord_count)
 	{
-		PrintError(); printf("Object has no uv mapping!\n");
+		Con::PrintError("Obj has no uv mapping!\n");
 		return 1;
 	}
 
-	if (!modelScribe.IsUVMappingValid())
+	if (!modelScribe.IsFaceCountValid())
 	{
-		PrintWarning(); printf("Object file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
+		Con::PrintError("Obj face count is invalid, make sure vertices are triangles!\n");
+		return 1;
 	}
 
-	if (!modelScribe.AreNormalsValid())
-	{
-		PrintWarning(); printf("Object file contains invalid normals mapping, size doesn't match face count!\n");
+	if (!modelScribe.IsUVMappingValid()) {
+		Con::PrintWarning("Obj file contains invalid uv mapping, texture indexes doesn't match face indexes!\n");
+	}
+
+	if (!modelScribe.AreNormalsValid()) {
+		Con::PrintWarning("Obj file contains invalid normals mapping, size doesn't match face count!\n");
 	}
 
 	// Vertex Decl Type
 	{
 		modelScribe.m_VertexDeclType = ModelScriber::eVertexDeclType_UVN;
-		if (IsArgSet("-skinned")) {
+		if (bSkinned) {
 			modelScribe.m_VertexDeclType = ModelScriber::eVertexDeclType_Skinned;
 		}
 	}
@@ -789,9 +748,10 @@ int main(int p_Argc, char** p_Argv)
 
 	modelScribe.InitializeMesh();
 	modelScribe.CreateBuffers();
+
 	if (!modelScribe.AreBuffersValid())
 	{
-		PrintError(); printf("Failed to create buffer, make sure vertices/faces are correctly exported!\n");
+		Con::PrintError("Failed to create buffer, make sure vertices/faces are correctly exported!\n");
 		return 1;
 	}
 
@@ -878,7 +838,7 @@ int main(int p_Argc, char** p_Argv)
 
 		for (int i = 0; 4 > i; ++i)
 		{
-			if (!modelScribe.m_VertexBuffers[i].m_DataPtr) {
+			if (!modelScribe.m_VertexBuffers[i].m_pData) {
 				continue;
 			}
 
@@ -900,16 +860,15 @@ int main(int p_Argc, char** p_Argv)
 
 	for (auto& m_PrintTable : vecPrintTables)
 	{
-		SetConColor(14); printf("[ %s ]:\n", m_PrintTable.m_Name);
+		Con::Print(14, "[ %s ]:\n", m_PrintTable.m_Name);
 
 		for (auto& m_Pair : m_PrintTable.m_Map)
 		{
-			SetConColor(13); printf("\t%s: ", &m_Pair.first[0]);
-			SetConColor(11); printf("\t0x%X\n", m_Pair.second);
+			Con::Print(13, "\t%s: ", &m_Pair.first[0]);
+			Con::Print(11, "\t0x%X\n", m_Pair.second);
 		}
 
 		printf("\n");
-		ResetConColor();
 	}
 
 	// Output
@@ -933,7 +892,8 @@ int main(int p_Argc, char** p_Argv)
 			}
 		}
 
-		SetConColor(14); printf("[ Output ]:\n"); SetConColor(13);
+		Con::Print(14, "[ Output ]:\n"); 
+		Con::SetColor(13);
 		printf("\t%s\n", &sPermBinFileName[0]);
 		printf("\t%s\n\n", &sTempBinFileName[0]);
 	}
