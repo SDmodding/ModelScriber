@@ -17,7 +17,7 @@
 //=============================================================
 // Defines
 
-#define PROJECT_VERSION		"v1.3.5"
+#define PROJECT_VERSION		"v1.3.4"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 //=============================================================
