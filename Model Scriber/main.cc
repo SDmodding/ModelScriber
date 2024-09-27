@@ -17,7 +17,7 @@
 //=============================================================
 // Defines
 
-#define PROJECT_VERSION		"v1.3.2"
+#define PROJECT_VERSION		"v1.3.3"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 //=============================================================
@@ -51,12 +51,19 @@
 
 namespace Helper
 {
-	void SetResourceName(UFG::ResourceData_t* p_ResourceData, const char* p_Name, uint32_t p_NameUID, const char* p_Suffix)
+	void SetResourceName(UFG::ResourceData_t* p_ResourceData, const char* p_Name, uint32_t p_NameUID = 0, const char* p_Suffix = 0)
 	{
-		char buffer[128] = { '\0' };
-		snprintf(buffer, sizeof(buffer), "%s.%s", p_Name, p_Suffix);
-		p_ResourceData->m_NameUID = SDK::StringHash32(buffer);
-		snprintf(p_ResourceData->m_DebugName, sizeof(UFG::ResourceData_t::m_DebugName), "0x%X_%s", p_NameUID, p_Suffix);
+		if (p_Suffix) 
+		{
+			char buffer[128] = { '\0' };
+			snprintf(buffer, sizeof(buffer), "%s.%s", p_Name, p_Suffix);
+			p_ResourceData->m_NameUID = SDK::StringHash32(buffer);
+			snprintf(p_ResourceData->m_DebugName, sizeof(UFG::ResourceData_t::m_DebugName), "0x%X_%s", p_NameUID, p_Suffix);
+			return;
+		}
+
+		p_ResourceData->m_NameUID = SDK::StringHash32(p_Name);
+		strncpy(p_ResourceData->m_DebugName, p_Name, sizeof(UFG::ResourceData_t::m_DebugName));
 	}
 
 	void SetUV(uint16_t* p_UVBytes, float* p_UV)
@@ -240,7 +247,6 @@ class ModelScriber
 {
 public:
 	fastObjMesh* m_ObjMesh = nullptr;
-	uint32_t m_NameUID = 0x0;
 
 	enum eVertexDeclType : int
 	{
@@ -274,13 +280,13 @@ public:
 
 	void SetName(const char* p_Name)
 	{
-		m_NameUID = SDK::StringHash32(p_Name);
+		uint32_t uNameUID = SDK::StringHash32(p_Name);
 
 		// Material
-		Helper::SetResourceName(&m_Material, p_Name, m_NameUID, "Material");
+		Helper::SetResourceName(&m_Material, p_Name, uNameUID, "Material");
 
 		// IndexBuffer
-		Helper::SetResourceName(&m_IndexBuffer, p_Name, m_NameUID, "IndexBuffer");
+		Helper::SetResourceName(&m_IndexBuffer, p_Name, uNameUID, "IndexBuffer");
 
 		// VertexBuffers
 		{
@@ -288,22 +294,22 @@ public:
 			{
 				case eVertexDeclType_UVN:
 				{
-					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, m_NameUID, "VertexBuffer");
-					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, m_NameUID, "UVNBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, uNameUID, "VertexBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, uNameUID, "UVNBuffer");
 				}
 				break;
 				case eVertexDeclType_Skinned:
 				{
-					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, m_NameUID, "VertexBuffer");
-					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, m_NameUID, "BlendBuffer");
-					Helper::SetResourceName(&m_VertexBuffers[2], p_Name, m_NameUID, "UVBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[0], p_Name, uNameUID, "VertexBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[1], p_Name, uNameUID, "BlendBuffer");
+					Helper::SetResourceName(&m_VertexBuffers[2], p_Name, uNameUID, "UVBuffer");
 				}
 				break;
 			}
 		}
 
 		// ModelData
-		Helper::SetResourceName(&m_ModelData, p_Name, m_NameUID, "ModelData");
+		Helper::SetResourceName(&m_ModelData, p_Name);
 	}
 	
 	void LoadMesh(const char* p_FilePath)
