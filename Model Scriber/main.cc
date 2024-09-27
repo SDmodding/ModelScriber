@@ -17,7 +17,7 @@
 //=============================================================
 // Defines
 
-#define PROJECT_VERSION		"v1.3.3"
+#define PROJECT_VERSION		"v1.3.5"
 #define PROJECT_NAME		"Model Scriber " PROJECT_VERSION
 
 //=============================================================
@@ -56,13 +56,13 @@ namespace Helper
 		if (p_Suffix) 
 		{
 			char buffer[128] = { '\0' };
-			snprintf(buffer, sizeof(buffer), "%s.%s", p_Name, p_Suffix);
-			p_ResourceData->m_NameUID = SDK::StringHash32(buffer);
+			snprintf(buffer, sizeof(buffer), "%s_%s", p_Name, p_Suffix);
+			p_ResourceData->m_NameUID = SDK::StringHashUpper32(buffer);
 			snprintf(p_ResourceData->m_DebugName, sizeof(UFG::ResourceData_t::m_DebugName), "0x%X_%s", p_NameUID, p_Suffix);
 			return;
 		}
 
-		p_ResourceData->m_NameUID = SDK::StringHash32(p_Name);
+		p_ResourceData->m_NameUID = SDK::StringHashUpper32(p_Name);
 		strncpy(p_ResourceData->m_DebugName, p_Name, sizeof(UFG::ResourceData_t::m_DebugName));
 	}
 
@@ -280,7 +280,7 @@ public:
 
 	void SetName(const char* p_Name)
 	{
-		uint32_t uNameUID = SDK::StringHash32(p_Name);
+		uint32_t uNameUID = SDK::StringHashUpper32(p_Name);
 
 		// Material
 		Helper::SetResourceName(&m_Material, p_Name, uNameUID, "Material");
