@@ -5,10 +5,30 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="Project Files\core">
+      <UniqueIdentifier>{d6af8c23-1dfc-4f0e-92ab-942635dfc3f4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cc">
+    <ClCompile Include="modelscriber.cc">
       <Filter>Project Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="core\ModelScriber.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="core\VertexStreamDescriptors.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\FBX.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\MaterialScriber.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Helper.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
