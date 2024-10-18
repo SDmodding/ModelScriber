@@ -105,7 +105,8 @@ int main(int argc, char** argv)
     material.AddParam("iShader", "Illusion.Shader", "HK_SCENERY");
     material.AddParam("iTexture", "texDiffuse", "Illusion.Texture", "DEFAULT");
     material.AddParam("iRasterState", "Illusion.RasterState", "Illusion.RasterState.Normal");
-    material.AddParam("iAlphaState", "Illusion.AlphaState", 0);
+    material.AddParam("iAlphaState", "Illusion.AlphaState");
+    material.AddParam("sbSpecularLook", "Illusion.StateBlock", 0x241AB391); /* StateBlock.Default_SpecularLook */
 
     material.CreateMaterial();
 
