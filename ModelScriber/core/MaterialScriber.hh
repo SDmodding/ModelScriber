@@ -11,12 +11,31 @@ namespace core
 		u32 mNumParams;
 
 		Illusion::Material* mMaterial;
+		u32 mByteSize;
 
-		MaterialScriber(const char* name) : mName(name), mNumParams(0), mMaterial(nullptr) {}
+		MaterialScriber(const char* name) : mName(name), mNumParams(0), mMaterial(nullptr), mByteSize(0) {}
+
+		~MaterialScriber()
+		{
+			if (mMaterial) {
+				qFree(mMaterial);
+			}
+		}
 
 		void AddParam(u32 state_type, u32 state_name, u32 resource_type, u32 resource_name)
 		{
 			qAssertF(mNumParams < 128, "ERROR: MaterialScriber too many params!");
+
+			/* Check if param already exist. */
+			for (u32 i = 0; mNumParams > i; ++i)
+			{
+				auto& param = mParams[i];
+				if (param.mTypeUID == state_type && param.mNameUID == state_name) {
+					return;
+				}
+			}
+
+			/* Add param. */
 
 			auto& param = mParams[mNumParams++];
 			{
@@ -49,7 +68,9 @@ namespace core
 
 		void CreateMaterial()
 		{
-			mMaterial = Illusion::Factory::NewMaterial(mName, mName.GetStringHashUpper32(), mNumParams);
+			auto schema = Illusion::GetSchema();
+			mMaterial = Illusion::Factory::NewMaterial(mName, mName.GetStringHashUpper32(), mNumParams, schema);
+			mByteSize = static_cast<u32>(schema->mCurrSize);
 
 			/* Copy params */
 
@@ -59,6 +80,13 @@ namespace core
 				*param = mParams[i];
 				param->mResourceHandle.mPrev = param->mResourceHandle.mNext = nullptr;
 			}
+		}
+
+		void WriteChunk(UFG::qChunkFileBuilder* chunk_builder)
+		{
+			chunk_builder->BeginChunk(ChunkUID_Material, mName);
+			chunk_builder->Write(mMaterial, mByteSize);
+			chunk_builder->EndChunk(ChunkUID_Material);
 		}
 	};
 }

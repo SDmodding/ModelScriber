@@ -8,9 +8,13 @@ namespace core
 		UFG::qString mName;
 		Illusion::VertexStreamDescriptor* mStreamDescriptor;
 
+		Illusion::BonePalette* mBonePalette;
+		u32 mBonePaletteSize;
+
 		Illusion::Buffer* mIndexBuffer;
 		Illusion::Buffer* mVertexBuffers[4]; /* VertexStreamDescriptor can only hold 4 streams. */
 		Illusion::Model* mModel;
+
 
 		ModelScriber(const char* name, const char* vertex_decl)
 		{
@@ -28,6 +32,11 @@ namespace core
 				}
 			}
 			qAssertF(mStreamDescriptor, "ERROR: Failed to find VertexStreamDescriptor.");
+
+			/* Setup bonePalette */
+
+			mBonePalette = nullptr;
+			mBonePaletteSize = 0;
 
 			/* Setup buffers*/
 
@@ -66,6 +75,11 @@ namespace core
 		{
 			return { "%s_MAT|%u|%s", mName.mData, index, name, mName.mData };
 			//return { "%s_MAT|%u|%s_MAT.%s.ufg", mName.mData, index, name, mName.mData };
+		}
+
+		UFG::qString GetBonePaletteName()
+		{
+			return { "%s.BonePalette", mName.mData };
 		}
 
 		UFG::qString GetIndexBufferName()
@@ -125,7 +139,7 @@ namespace core
 			return nullptr;
 		}
 
-		void RecalculateAABB(const UFG::qVector3& position)
+		void RecalculateAABB(const UFG::qVector4& position)
 		{
 			if (mModel->mAABBMin[0] > position.x) {
 				mModel->mAABBMin[0] = position.x;
@@ -166,6 +180,81 @@ namespace core
 			}
 		}
 
+		void SetMeshMaterial(u32 mesh_index, Illusion::Material* material)
+		{
+			qAssertF(mesh_index < mModel->mNumMeshes, "ERROR: Invalid mesh index while setting material.");
+
+			mModel->GetMesh(mesh_index)->mMaterialHandle.mNameUID = material->mNode.mUID;
+		}
+
+		void WriteChunks(UFG::qChunkFileBuilder* chunk_builder)
+		{
+			auto memory_pool = UFG::GetMainMemoryPool();
+
+			if (mBonePalette)
+			{
+				chunk_builder->BeginChunk(ChunkUID_BonePalette, GetBonePaletteName());
+				chunk_builder->Write(mBonePalette, mBonePaletteSize);
+				chunk_builder->EndChunk(ChunkUID_BonePalette);
+			}
+
+			chunk_builder->BeginChunk(ChunkUID_Buffer, GetIndexBufferName());
+			chunk_builder->Write(mIndexBuffer, static_cast<u32>(memory_pool->Size(mIndexBuffer)));
+			chunk_builder->EndChunk(ChunkUID_Buffer);
+
+			for (auto vertex_buffer : mVertexBuffers)
+			{
+				if (!vertex_buffer) {
+					continue;
+				}
+
+				chunk_builder->BeginChunk(ChunkUID_Buffer, GetIndexBufferName());
+				chunk_builder->Write(vertex_buffer, static_cast<u32>(memory_pool->Size(vertex_buffer)));
+				chunk_builder->EndChunk(ChunkUID_Buffer);
+			}
+
+			chunk_builder->BeginChunk(ChunkUID_Model, mName);
+			chunk_builder->Write(mModel, static_cast<u32>(memory_pool->Size(mModel)));
+			chunk_builder->EndChunk(ChunkUID_Model);
+		}
+
+		//-------------------------------------------------------------
+		// Bone Helpers
+		//-------------------------------------------------------------
+		
+		/* TODO: Change this when we have internal qChunk "Loader". */
+		void SetBonePalette(UFG::qChunk* bone_palette_chunk)
+		{
+			if (bone_palette_chunk->mUID != ChunkUID_BonePalette) {
+				return;
+			}
+
+			mBonePalette = static_cast<Illusion::BonePalette*>(bone_palette_chunk->GetData());
+			mBonePaletteSize = bone_palette_chunk->mDataSize;
+
+			auto name = GetBonePaletteName();
+			mBonePalette->mNode.SetUID(name.GetStringHash32());
+			mBonePalette->SetDebugName(name);
+		}
+
+		u8 GetBoneIndex(const char* bone_name)
+		{
+			if (mBonePalette)
+			{
+				u32 boneUID = UFG::qStringHashUpper32(bone_name);
+				u32* boneUIDTable = mBonePalette->mBoneUIDTable.Get();
+
+				for (u32 i = 0; mBonePalette->mNumBones > i; ++i)
+				{
+					if (boneUIDTable[i] == boneUID) {
+						return i;
+					}
+				}
+			}
+
+			return 0;
+		}
+
 		//-------------------------------------------------------------
 		// Create Functions
 		//-------------------------------------------------------------
@@ -183,7 +272,7 @@ namespace core
 			auto name = GetIndexBufferName();
 			u32 byte_size = (num_cp >= UINT16_MAX ? sizeof(u32) : sizeof(u16));
 
-			mIndexBuffer = Illusion::Factory::NewBuffer(name, name.GetStringHashUpper32(), (byte_size * num_vertexes), 0, name);
+			mIndexBuffer = Illusion::Factory::NewBuffer(name, name.GetStringHash32(), (byte_size * num_vertexes), 0, name);
 			mIndexBuffer->mBufferType		= Illusion::Buffer::TYPE_INDEX;
 			mIndexBuffer->mRunTimeCreated	= false;
 			mIndexBuffer->mElementByteSize	= byte_size;
@@ -209,7 +298,7 @@ namespace core
 
 				auto name = GetVertexBufferName(stream_num);
 
-				auto vertexBuffer = Illusion::Factory::NewBuffer(name, name.GetStringHashUpper32(), (stream_size * num_cp), 0, name);
+				auto vertexBuffer = Illusion::Factory::NewBuffer(name, name.GetStringHash32(), (stream_size * num_cp), 0, name);
 				vertexBuffer->mBufferType = Illusion::Buffer::TYPE_VERTEX;
 				vertexBuffer->mRunTimeCreated = false;
 				vertexBuffer->mElementByteSize = stream_size;
@@ -223,6 +312,10 @@ namespace core
 		void CreateModel(u32 num_meshes)
 		{
 			mModel = Illusion::Factory::NewModel(mName, mName.GetStringHashUpper32(), num_meshes);
+
+			if (mBonePalette) {
+				mModel->mBonePaletteHandle.mNameUID = mBonePalette->mNode.mUID;
+			}
 
 			/* Setup meshes */
 
@@ -261,7 +354,7 @@ namespace core
 			}
 		}
 
-		void WritePosition(int index, const UFG::qVector3& position)
+		void WritePosition(int index, const UFG::qVector4& position)
 		{
 			RecalculateAABB(position);
 
@@ -279,6 +372,12 @@ namespace core
 			{
 			default: qAssertF(false, "ERROR: Unknown Vertex Position type!"); break;
 			case Illusion::VERTEX_TYPE_FLOAT3:
+			{
+				UFG::qVector3 f3 = { position.x, position.y, position.z};
+				UFG::qMemCopy(data, &f3, sizeof(f3));
+			}
+			break;
+			case Illusion::VERTEX_TYPE_FLOAT4:
 				UFG::qMemCopy(data, &position, sizeof(position)); break;
 			}
 		}
@@ -302,6 +401,30 @@ namespace core
 			{
 				s8 normal4N[4] = { GetByteN(normal.x), GetByteN(normal.y), GetByteN(normal.z), GetByteN(normal.w) };
 				UFG::qMemCopy(data, normal4N, sizeof(normal4N));
+			}
+			break;
+			}
+		}
+
+		void WriteTangent(int index, const UFG::qVector4& tangent)
+		{
+			auto stream_element = GetStreamElement(Illusion::VERTEX_ELEMENT_TANGENT);
+			if (!stream_element) {
+				return;
+			}
+
+			void* data = GetVertexBufferData(stream_element, index);
+			if (!data) {
+				return;
+			}
+
+			switch (stream_element->mType)
+			{
+			default: qAssertF(false, "ERROR: Unknown Vertex Tangent type!"); break;
+			case Illusion::VERTEX_TYPE_BYTE4N:
+			{
+				s8 tangent4N[4] = { GetByteN(tangent.x), GetByteN(tangent.y), GetByteN(tangent.z), GetByteN(tangent.w) };
+				UFG::qMemCopy(data, tangent4N, sizeof(tangent4N));
 			}
 			break;
 			}
@@ -355,6 +478,54 @@ namespace core
 			{
 				UFG::qHalfFloat half_coords[2] = { coordX, coordY };
 				UFG::qMemCopy(data, half_coords, sizeof(half_coords));
+			}
+			break;
+			}
+		}
+
+		void WriteBlendIndex(int index, u8* blend_indexes)
+		{
+			auto stream_element = GetStreamElement(Illusion::VERTEX_ELEMENT_BLENDINDEX);
+			if (!stream_element) {
+				return;
+			}
+
+			void* data = GetVertexBufferData(stream_element, index);
+			if (!data) {
+				return;
+			}
+
+			switch (stream_element->mType)
+			{
+			default: qAssertF(false, "ERROR: Unknown Vertex Blend Index type!"); break;
+			case Illusion::VERTEX_TYPE_UBYTE4:
+				UFG::qMemCopy(data, blend_indexes, 4); break;
+			}
+		}
+
+		void WriteBlendWeight(int index, float* blend_weights)
+		{
+			auto stream_element = GetStreamElement(Illusion::VERTEX_ELEMENT_BLENDWEIGHT);
+			if (!stream_element) {
+				return;
+			}
+
+			void* data = GetVertexBufferData(stream_element, index);
+			if (!data) {
+				return;
+			}
+
+			switch (stream_element->mType)
+			{
+			default: qAssertF(false, "ERROR: Unknown Vertex Blend Weight type!"); break;
+			case Illusion::VERTEX_TYPE_UBYTE4N:
+			{
+				u8* blendWeights = reinterpret_cast<u8*>(data);
+				blendWeights[0] = GetUByteN(blend_weights[0]);
+				blendWeights[1] = GetUByteN(blend_weights[1]);
+				blendWeights[2] = GetUByteN(blend_weights[2]);
+				blendWeights[3] = GetUByteN(blend_weights[3]);
+				UFG::qMemCopy(data, blendWeights, 4);
 			}
 			break;
 			}
