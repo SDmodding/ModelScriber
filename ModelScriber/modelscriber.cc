@@ -144,37 +144,35 @@ namespace core
                     fbxsdk::FbxVector4 normal;
                     mesh->GetPolygonVertexNormal(i, j, normal);
 
-                    auto boneWeights = &cpBoneWeights[vertexIndex].mList;
-                    if (boneWeights->Size() > 1) {
-                        bool debug = true;
-                    }
-
-                    vertexIndex += vertexIndexOffset;
-
                     /* Pass data to ModelScribe */
 
-                    gModelScriber->WriteIndex(i + indexStart, j, vertexIndex);
+                    int insertIndex = (vertexIndex + vertexIndexOffset);
+                    gModelScriber->WriteIndex(i + indexStart, j, insertIndex);
 
-                    gModelScriber->WritePosition(vertexIndex, { static_cast<float>(pos[0]), static_cast<float>(pos[1]), static_cast<float>(pos[2]), static_cast<float>(pos[3]) });
-                    gModelScriber->WriteNormal(vertexIndex, { static_cast<float>(normal[0]), static_cast<float>(normal[1]), static_cast<float>(normal[2]), static_cast<float>(normal[3]) });
-                    gModelScriber->WriteTangent(vertexIndex, { -1.f, -1.f, -1.f, 1.f });
-                    gModelScriber->WriteTexCoord(vertexIndex, { static_cast<float>(uv[0]), static_cast<float>(uv[1]) });
+                    gModelScriber->WritePosition(insertIndex, { static_cast<float>(pos[0]), static_cast<float>(pos[1]), static_cast<float>(pos[2]), static_cast<float>(pos[3]) });
+                    gModelScriber->WriteNormal(insertIndex, { static_cast<float>(normal[0]), static_cast<float>(normal[1]), static_cast<float>(normal[2]), static_cast<float>(normal[3]) });
+                    gModelScriber->WriteTangent(insertIndex, { -1.f, -1.f, -1.f, 1.f });
+                    gModelScriber->WriteTexCoord(insertIndex, { static_cast<float>(uv[0]), static_cast<float>(uv[1]) });
 
                     /* Blend Index & Weight */
 
                     u8 blend_indexes[4] = { 0, 0, 0, 0 };
                     float blend_weights[4] = { 0.f, 0.f, 0.f, 0.f };
-
-                    int blend_count = qMin(boneWeights->Size(), 4);
-                    for (int i = 0; blend_count > i; ++i)
+                    
+                    if (cpBoneWeights.Size() > vertexIndex)
                     {
-                        auto boneWeight = boneWeights->GetAt(i);
-                        blend_indexes[i] = gModelScriber->GetBoneIndex(boneWeight.mName);
-                        blend_weights[i] = static_cast<float>(boneWeight.mWeight);
+                        auto boneWeights = &cpBoneWeights[vertexIndex].mList;
+                        int blend_count = qMin(boneWeights->Size(), 4);
+                        for (int i = 0; blend_count > i; ++i)
+                        {
+                            auto boneWeight = boneWeights->GetAt(i);
+                            blend_indexes[i] = gModelScriber->GetBoneIndex(boneWeight.mName);
+                            blend_weights[i] = static_cast<float>(boneWeight.mWeight);
+                        }
                     }
 
-                    gModelScriber->WriteBlendIndex(vertexIndex, blend_indexes);
-                    gModelScriber->WriteBlendWeight(vertexIndex, blend_weights);
+                    gModelScriber->WriteBlendIndex(insertIndex, blend_indexes);
+                    gModelScriber->WriteBlendWeight(insertIndex, blend_weights);
                 }
             }
 
