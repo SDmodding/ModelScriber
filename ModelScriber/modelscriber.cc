@@ -200,21 +200,21 @@ int main(int argc, char** argv)
     SetConsoleTitleA("ModelScriberPC64");
 
     core::InitializeFBX();
-    auto fbxScene = core::ImportScene("Skinned.fbx");
+    auto fbxScene = core::ImportScene("Skinned2.fbx");
     //auto fbxScene = core::ImportScene("PoliceBaton001_A.fbx");
     if (!fbxScene) {
         return 1;
     }
 
-    core::gModelScriber = new core::ModelScriber("MRTONG_SKIN_BODY", "VertexDecl.Skinned");
+    core::gModelScriber = new core::ModelScriber("ALEX_SKIN_BODY", "VertexDecl.Skinned");
     //core::gModelScriber = new core::ModelScriber("PoliceBaton001_A", "VertexDecl.UVN");
 
-    core::gModelScriber->SetBonePalette(reinterpret_cast<UFG::qChunk*>(UFG::qReadEntireFile("BonePalette.perm.bin")));
+    core::gModelScriber->SetBonePalette(reinterpret_cast<UFG::qChunk*>(UFG::qReadEntireFile("Alex.BonePalette.perm.bin")));
 
     core::CreateModel(fbxScene);
 
     UFG::qChunkFileBuilder chunk_builder;
-    chunk_builder.CreateBuilder("PC64", "MrTong.perm.bin");
+    chunk_builder.CreateBuilder("PC64", "Alex.perm.bin");
 
     core::ScribeMaterials(&chunk_builder, fbxScene);
     core::ScribeModel(&chunk_builder, fbxScene);

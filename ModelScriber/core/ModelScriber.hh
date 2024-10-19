@@ -195,6 +195,7 @@ namespace core
 			{
 				chunk_builder->BeginChunk(ChunkUID_BonePalette, GetBonePaletteName());
 				chunk_builder->Write(mBonePalette, mBonePaletteSize);
+				chunk_builder->Align(16);
 				chunk_builder->EndChunk(ChunkUID_BonePalette);
 			}
 
@@ -225,7 +226,7 @@ namespace core
 		/* TODO: Change this when we have internal qChunk "Loader". */
 		void SetBonePalette(UFG::qChunk* bone_palette_chunk)
 		{
-			if (bone_palette_chunk->mUID != ChunkUID_BonePalette) {
+			if (!bone_palette_chunk || bone_palette_chunk->mUID != ChunkUID_BonePalette) {
 				return;
 			}
 
