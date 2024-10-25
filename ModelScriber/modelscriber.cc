@@ -269,7 +269,7 @@ namespace core
                     /* Blend Index & Weight */
 
                     u8 blend_indexes[4] = { 0, 0, 0, 0 };
-                    float blend_weights[4] = { 0.f, 0.f, 0.f, 0.f };
+                    float blend_weights[4] = { 1.f, 0.f, 0.f, 0.f };
                     
                     if (cpBoneWeights.Size() > vertexIndex)
                     {
@@ -395,7 +395,7 @@ int main(int argc, char** argv)
     if (auto config_file = core::gTextureScriberConfig)
     {
         if (UFG::qGetFileSize(config_file)) {
-            UFG::qWriteString(config_file, "<MediaPack>\n");
+            UFG::qWriteString(config_file, "</MediaPack>\n");
         }
         UFG::qClose(config_file);
     }
