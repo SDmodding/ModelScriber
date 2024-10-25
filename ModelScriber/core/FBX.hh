@@ -6,6 +6,8 @@
 //===================================================================================
 #pragma once
 
+using namespace fbxsdk;
+
 namespace core
 {
 	FbxManager* gFbxMgr = nullptr;
@@ -162,5 +164,47 @@ namespace core
 		}
 
 		return boneWeights;
+	}
+
+	FbxVector4 GetTangent(FbxLayerElementTangent* tangents, int vertex_index, int poly_count)
+	{
+		if (tangents && tangents->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+		{
+			switch (tangents->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				return tangents->GetDirectArray().GetAt(vertex_index);
+			case FbxGeometryElement::eIndexToDirect:
+			{
+				int index = tangents->GetIndexArray().GetAt(vertex_index);
+				return tangents->GetDirectArray().GetAt(index);
+			}
+			default:
+				break;
+			}
+		}
+
+		return { 0.0, 0.0, 0.0, 1.0 };
+	}
+
+	FbxColor GetVertexColor(FbxLayerElementVertexColor* colors, int vertex_index, int poly_count)
+	{
+		if (colors && colors->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+		{
+			switch (colors->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				return colors->GetDirectArray().GetAt(vertex_index);
+			case FbxGeometryElement::eIndexToDirect:
+			{
+				int index = colors->GetIndexArray().GetAt(vertex_index);
+				return colors->GetDirectArray().GetAt(index);
+			}
+			default:
+				break;
+			}
+		}
+
+		return { 0.0, 0.0, 0.0, 1.0 };
 	}
 }

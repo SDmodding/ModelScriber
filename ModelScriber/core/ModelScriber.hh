@@ -71,6 +71,11 @@ namespace core
 		// Name Helpers
 		//-------------------------------------------------------------
 
+		UFG::qString GetMaterialName(const char* name)
+		{
+			return { "%s_MAT|%s", mName.mData, name, mName.mData };
+		}
+
 		UFG::qString GetMaterialName(const char* name, u32 index)
 		{
 			return { "%s_MAT|%u|%s", mName.mData, index, name, mName.mData };
@@ -184,7 +189,15 @@ namespace core
 		{
 			qAssertF(mesh_index < mModel->mNumMeshes, "ERROR: Invalid mesh index while setting material.");
 
-			mModel->GetMesh(mesh_index)->mMaterialHandle.mNameUID = material->mNode.mUID;
+			auto mesh = mModel->GetMesh(mesh_index);
+			mesh->mMaterialHandle.mData = material;
+			mesh->mMaterialHandle.mNameUID = material->mNode.mUID;
+		}
+
+		Illusion::Material* GetMeshMaterial(u32 mesh_index)
+		{
+			qAssertF(mesh_index < mModel->mNumMeshes, "ERROR: Invalid mesh index while getting material.");
+			return mModel->GetMesh(mesh_index)->mMaterialHandle.GetData();
 		}
 
 		void WriteChunks(UFG::qChunkFileBuilder* chunk_builder)
@@ -195,7 +208,6 @@ namespace core
 			{
 				chunk_builder->BeginChunk(ChunkUID_BonePalette, GetBonePaletteName());
 				chunk_builder->Write(mBonePalette, mBonePaletteSize);
-				chunk_builder->Align(16);
 				chunk_builder->EndChunk(ChunkUID_BonePalette);
 			}
 
@@ -226,7 +238,9 @@ namespace core
 		/* TODO: Change this when we have internal qChunk "Loader". */
 		void SetBonePalette(UFG::qChunk* bone_palette_chunk)
 		{
-			if (!bone_palette_chunk || bone_palette_chunk->mUID != ChunkUID_BonePalette) {
+			if (!bone_palette_chunk || bone_palette_chunk->mUID != ChunkUID_BonePalette) 
+			{
+				UFG::qPrintf("WARN: Trying to SetBonePalette which is invalid!\n");
 				return;
 			}
 
@@ -323,7 +337,7 @@ namespace core
 			for (u32 i = 0; num_meshes > i; ++i)
 			{
 				auto mesh = mModel->GetMesh(i);
-				mesh->mMaterialHandle.mNameUID = GetMaterialName(mName, i).GetStringHashUpper32();
+				mesh->mMaterialHandle.mNameUID = -1;
 				mesh->mVertexDeclHandle.mNameUID = mStreamDescriptor->mNameUID;
 				mesh->mIndexBufferHandle.mNameUID = mIndexBuffer->mNode.mUID;
 
@@ -479,6 +493,30 @@ namespace core
 			{
 				UFG::qHalfFloat half_coords[2] = { coordX, coordY };
 				UFG::qMemCopy(data, half_coords, sizeof(half_coords));
+			}
+			break;
+			}
+		}
+
+		void WriteColor(int index, const UFG::qVector4& color)
+		{
+			auto stream_element = GetStreamElement(Illusion::VERTEX_ELEMENT_COLOR0);
+			if (!stream_element) {
+				return;
+			}
+
+			void* data = GetVertexBufferData(stream_element, index);
+			if (!data) {
+				return;
+			}
+
+			switch (stream_element->mType)
+			{
+			default: qAssertF(false, "ERROR: Unknown Vertex Color type!"); break;
+			case Illusion::VERTEX_TYPE_COLOR4:
+			{
+				u8 colors[4] = { GetUByteN(color.x), GetUByteN(color.y), GetUByteN(color.z), GetUByteN(color.w) };
+				UFG::qMemCopy(data, colors, sizeof(colors));
 			}
 			break;
 			}

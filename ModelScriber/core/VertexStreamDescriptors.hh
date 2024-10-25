@@ -22,6 +22,19 @@ namespace core
 		}
 	};
 
+	class UVNTCDescriptor : public VertexStreamDescriptor
+	{
+	public:
+		UVNTCDescriptor() : VertexStreamDescriptor("VertexDecl.UVNTC", 0x911E1A51)
+		{
+			AddElement(VERTEX_ELEMENT_POSITION, VERTEX_TYPE_FLOAT3, 0);
+			AddElement(VERTEX_ELEMENT_TEXCOORD0, VERTEX_TYPE_HALF2, 1);
+			AddElement(VERTEX_ELEMENT_NORMAL, VERTEX_TYPE_BYTE4N, 1);
+			AddElement(VERTEX_ELEMENT_TANGENT, VERTEX_TYPE_BYTE4N, 1);
+			AddElement(VERTEX_ELEMENT_COLOR0, VERTEX_TYPE_COLOR4, 1);
+		}
+	};
+
 	class SkinnedDescriptor : public VertexStreamDescriptor
 	{
 	public:
@@ -37,5 +50,6 @@ namespace core
 	};
 
 	static UVNDescriptor gUVNDescriptor;
+	static UVNTCDescriptor gUVNTCDescriptor;
 	static SkinnedDescriptor gSkinnedDescriptor;
 }

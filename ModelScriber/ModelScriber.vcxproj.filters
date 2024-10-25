@@ -30,5 +30,8 @@
     <ClInclude Include="Core\Helper.hh">
       <Filter>Project Files\core</Filter>
     </ClInclude>
+    <ClInclude Include="core\Console.hh">
+      <Filter>Project Files\core</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
