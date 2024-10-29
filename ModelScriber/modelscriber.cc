@@ -70,27 +70,10 @@ namespace core
                 }
             }
         }
+
         gTextureScriberResources.Insert(new UFG::qString(resource_file));
 
-        auto output_name = resource_file.GetFilenameWithoutExtension();
-        const char* suffix = nullptr;
-
-        UFG::qString resource = { "\t<Resource OutputName=\"%s\"", output_name.mData };
-
-        if (UFG::qStringFindInsensitive(resource_name, "Normal")) {
-            suffix = "_N";
-        }
-        else if (UFG::qStringFindInsensitive(resource_name, "Specular")) {
-            suffix = "_S";
-        }
-
-        if (suffix) {
-            resource += { " Suffix=\"%s\"", suffix };
-        }
-
-        resource += { ">%s</Resource>\n", resource_file.mData };
-
-        UFG::qWriteString(gTextureScriberConfig, resource, resource.mLength);
+        UFG::qFPrintf(gTextureScriberConfig, "\t<Resource OutputName=\"%s\">%s</Resource>\n", resource_name, resource_file.GetFilenameWithoutExtension().mData);
     }
 
     void ScribeMaterials(UFG::qChunkFileBuilder* chunk_builder, FbxScene* scene)
@@ -147,11 +130,26 @@ namespace core
                         UFG::qString fileName = fileTexture->GetFileName();
                         if (!fileName.IsEmpty())
                         {
-                            if (gTextureScriberConfig) {
-                                AddTextureScriberResource(fileName, materialMap.mIllusion);
+                            auto resource_name = fileName.GetFilenameWithoutExtension();
+                            const char* suffix = nullptr;
+
+                            if (UFG::qStringCompareInsensitive(materialMap.mFbx, FbxSurfaceMaterial::sNormalMap) == 0) {
+                                suffix = "_N";
+                            }
+                            else if (UFG::qStringCompareInsensitive(materialMap.mIllusion, FbxSurfaceMaterial::sSpecular) == 0) {
+                                suffix = "_S";
                             }
 
-                            mat.AddParam("iTexture", materialMap.mIllusion, "Illusion.Texture", fileName.GetFilenameWithoutExtension().GetStringHashUpper32());
+                            /* Normal & Specular texture needs to have suffix so TextureScriber set correct type on 'Illusion::Texture'! */
+                            if (suffix && !resource_name.EndsWith(suffix)) {
+                                resource_name += suffix;
+                            }
+
+                            if (gTextureScriberConfig) {
+                                AddTextureScriberResource(fileName, resource_name);
+                            }
+
+                            mat.AddParam("iTexture", materialMap.mIllusion, "Illusion.Texture", resource_name.GetStringHashUpper32());
                         }
                     }
                 }
